@@ -140,6 +140,25 @@
   .tk-status{display:flex;align-items:center;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.08em;color:var(--muted);padding:0 8px;white-space:nowrap}
   .tk-status.live{color:var(--green)} .tk-status.stale{color:var(--gold)} .tk-status.off{color:var(--red)}
 
+  /* ============ NIVEL PRO: señal, alertas, backtest ============ */
+  .sigchips{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+  .chip{font-family:'DM Mono',monospace;font-size:.7rem;border:1px solid var(--line);border-radius:999px;padding:3px 11px;color:var(--muted);white-space:nowrap}
+  .chip b{color:var(--gold);font-weight:400}
+  .chip.ok b{color:var(--green)} .chip.warn b{color:var(--red)}
+  .btn.sm.live-on{background:var(--green);border-color:var(--green);color:var(--card)}
+  .armed{list-style:none}
+  .armed li{display:flex;justify-content:space-between;gap:10px;align-items:baseline;padding:7px 0;border-bottom:1px dashed rgba(154,123,34,.18);font-size:.8rem}
+  .armed li:last-child{border-bottom:none}
+  .armed .lv{font-family:'DM Mono',monospace;color:var(--ink)}
+  .armed .st{font-family:'DM Mono',monospace;font-size:.66rem;letter-spacing:.06em}
+  .armed .st.armada{color:var(--green)} .armed .st.disparada{color:var(--red)} .armed .st.cruzado{color:var(--muted)}
+  #toasts{position:fixed;right:14px;bottom:14px;z-index:80;display:flex;flex-direction:column;gap:8px;max-width:320px}
+  .toastx{background:var(--card);border:1px solid var(--gold);border-radius:12px;padding:10px 14px;font-size:.8rem;color:var(--ink);box-shadow:0 12px 30px -12px rgba(0,0,0,.4);animation:fade .3s ease}
+  .toastx b{color:var(--gold)}
+  .bt-note{font-size:.72rem;color:var(--muted);margin-top:10px}
+  .bt-tag{display:inline-block;font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.12em;text-transform:uppercase;padding:3px 10px;border-radius:999px;border:1px solid var(--line);color:var(--muted);margin-bottom:10px}
+  .bt-tag.real{color:var(--green);border-color:rgba(46,125,91,.5)}
+
   /* ============ HÉROE ANIMADO (tras el gráfico maestro) ============ */
   #masterCard{position:relative;overflow:hidden}
   #masterCard::before{
@@ -384,6 +403,7 @@
     <div class="stat">
       <div class="k">Ratio SOL/ETH actual</div>
       <input type="number" id="pRatio" step="0.0001" min="0.02" max="0.08" value="0.0412" aria-label="Ratio SOL/ETH actual">
+      <div class="s" style="margin-top:6px"><button class="btn sm" id="btnAuto" style="padding:2px 8px;font-size:.62rem" aria-pressed="false" title="El ratio del panel sigue el precio en vivo de Binance">○ seguir en vivo</button></div>
       <div class="s">Pico de referencia: <span class="mono" id="pPeakLbl">0.0465</span> · <button class="btn sm" id="pPeakEdit" style="padding:2px 8px;font-size:.62rem" aria-controls="pPeakRow" aria-expanded="false">editar pico</button></div>
       <div class="s" id="pPeakRow" style="display:none"><input type="number" id="pPeak" step="0.0001" min="0.02" max="0.08" value="0.0465" aria-label="Ratio pico de referencia"></div>
     </div>
@@ -404,9 +424,18 @@
     </div>
   </div>
 
+  <div class="card" id="signalCard">
+    <h3>Señal del sistema — ahora</h3>
+    <div class="verdict v-wait" id="lvVerdict" role="status" aria-live="polite">
+      <div class="ic" id="lvIcon">⏸</div>
+      <div><div class="t" id="lvTitle">Cargando datos del mercado…</div><div class="d" id="lvDesc">La señal se calcula con el ratio actual, el pico de referencia y la MA25.</div></div>
+    </div>
+    <div class="sigchips" id="sigChips" aria-label="Contexto de mercado del sistema"></div>
+  </div>
+
   <div class="card" id="masterCard">
     <h3>Gráfico maestro — el sistema pintado sobre el ratio</h3>
-    <p class="muted" style="font-size:.8rem;margin-bottom:12px">~120 sesiones simuladas (demo determinista). Pasa el cursor: el tooltip dice qué haría el sistema en cada zona.</p>
+    <p class="muted" style="font-size:.8rem;margin-bottom:12px" id="masterNote">~120 sesiones simuladas (demo determinista). Pasa el cursor: el tooltip dice qué haría el sistema en cada zona.</p>
     <div class="chart-wrap" id="wrapMaster">
       <canvas id="chMaster" role="img" aria-label="Gráfico de línea del ratio SOL/ETH con bandas del sistema: pico, tramos de compra a menos 10 y menos 15 por ciento, invalidación en 0.0355, media móvil de 25 sesiones y marcadores de compra y venta"></canvas>
       <div class="chart-fallback">
@@ -423,6 +452,16 @@
       <span><b style="background:var(--gold)"></b> venta</span>
       <span><i class="dash" style="border-color:var(--ink)"></i> ratio actual (editable)</span>
     </div>
+  </div>
+
+  <div class="card" id="alertCard">
+    <h3>Alertas del sistema — automatización, paso 1</h3>
+    <p class="muted" style="font-size:.8rem;margin-bottom:10px">La mejora pro #6 empieza aquí: alertas en los niveles del sistema (tramos, invalidación y señal de salida) vigilando el ratio en vivo. Suena un aviso y, si lo permites, una notificación del navegador.</p>
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:10px">
+      <button class="btn gold" id="btnAlerts" aria-pressed="false">Activar alertas</button>
+      <span class="mono" id="alertState" style="font-size:.72rem;color:var(--muted)" role="status" aria-live="polite">desactivadas</span>
+    </div>
+    <ul class="armed" id="alertList" aria-label="Niveles vigilados"></ul>
   </div>
 </section>
 
@@ -672,6 +711,33 @@
       <div class="chart-fallback"><table class="fb-tbl" id="fbAvg"></table></div>
     </div>
   </div>
+
+  <h2 style="margin-top:32px">Backtest — las 5 reglas sobre el histórico</h2>
+  <p class="lede">La pregunta que un profesional hace antes de arriesgar un ETH: <b>¿qué habría hecho este sistema con datos reales?</b></p>
+
+  <div class="card" id="btCard">
+    <span class="bt-tag" id="btTag">demo determinista</span>
+    <p class="muted" style="font-size:.8rem;margin-bottom:12px" id="btLede">Ejecuta las reglas tal cual están escritas: tramos en −10% / −15% (15% cada uno), salida en +5% de sesión o cruce de la MA25, compras congeladas bajo 0.0355, tope del 30%. Tramos 3–4 no se usan (son opcionales).</p>
+    <div class="metric-grid" style="margin-bottom:14px">
+      <div class="metric"><div class="k">Ciclos cerrados</div><div class="v" id="btCycles">—</div></div>
+      <div class="metric"><div class="k">ETH final (desde 100)</div><div class="v" id="btFinal">—</div></div>
+      <div class="metric"><div class="k">Δ vs. solo holdear</div><div class="v" id="btDelta">—</div></div>
+      <div class="metric"><div class="k">Ciclos ganadores</div><div class="v" id="btWin">—</div></div>
+      <div class="metric"><div class="k">Días por ciclo</div><div class="v" id="btDays">—</div></div>
+    </div>
+    <div class="chart-wrap short" id="wrapBT">
+      <canvas id="chBT" role="img" aria-label="Curva de equity del backtest: ETH del portafolio a lo largo de las sesiones"></canvas>
+      <div class="chart-fallback"><table class="fb-tbl" id="fbBT"></table></div>
+    </div>
+    <div class="tbl-scroll" style="margin-top:12px">
+      <table class="jtbl">
+        <thead><tr><th scope="col" style="text-align:left">#</th><th scope="col">Entrada</th><th scope="col">Salida</th><th scope="col">R. promedio</th><th scope="col">R. salida</th><th scope="col">Días</th><th scope="col">Δ ETH</th></tr></thead>
+        <tbody id="btBody"><tr><td colspan="7" style="text-align:left;color:var(--muted)">Calculando…</td></tr></tbody>
+      </table>
+    </div>
+    <p class="mono" id="btOpen" style="font-size:.74rem;color:var(--muted);margin-top:8px"></p>
+    <p class="bt-note">Backtest educativo: sin comisiones ni deslizamiento, con cierres diarios (la última vela del día está en formación). El pico de referencia se siembra con el primer cierre de la ventana, así que las primeras señales dependen de dónde empieza el histórico. "ETH final" es <i>mark-to-market</i>: incluye el valor de la posición abierta. El pasado no garantiza el futuro — la lección está en <i>cómo</i> se comporta el sistema, no en la cifra exacta.</p>
+  </div>
 </section>
 
 <!-- ===== TAB 5 · BITÁCORA ===== -->
@@ -685,6 +751,8 @@
     <div class="metric"><div class="k">Peor ciclo</div><div class="v" id="mWorst">—</div></div>
     <div class="metric"><div class="k">Duración media</div><div class="v" id="mDur">—</div></div>
     <div class="metric"><div class="k">Ciclos ganadores</div><div class="v" id="mWin">—</div></div>
+    <div class="metric"><div class="k">Profit factor</div><div class="v" id="mPF">—</div></div>
+    <div class="metric"><div class="k">Máx. drawdown</div><div class="v" id="mDD">—</div></div>
   </div>
 
   <div class="card">
@@ -966,27 +1034,37 @@ function movingAvg(arr, p){
     return s / p;
   });
 }
-const SERIE = genSeries();
-const MA = movingAvg(SERIE, CONFIG.MA_PERIOD);
-// Marcadores del ciclo de ejemplo: compras en cruces de tramos, venta en el rebote.
-const T1_LVL = CONFIG.DEMO_PEAK * (1 + CONFIG.TRAMO1_DD/100);
-const T2_LVL = CONFIG.DEMO_PEAK * (1 + CONFIG.TRAMO2_DD/100);
-const peakIdx = SERIE.indexOf(Math.max(...SERIE.slice(0, 40)));
-let buy1 = -1, buy2 = -1, sell = -1;
-for (let i = peakIdx; i < SERIE.length; i++){
-  if (buy1 < 0 && SERIE[i] <= T1_LVL) buy1 = i;
-  if (buy2 < 0 && SERIE[i] <= T2_LVL) buy2 = i;
-}
-if (buy1 >= 0){
-  const avgCost = buy2 >= 0 ? (SERIE[buy1] + SERIE[buy2]) / 2 : SERIE[buy1];
-  for (let i = Math.max(buy1, buy2) + 1; i < SERIE.length; i++){
-    const sessionUp = (SERIE[i] / SERIE[i-1] - 1) * 100 >= CONFIG.EXIT_SESSION;
-    const overAvg = SERIE[i] >= avgCost * (1 + CONFIG.SALIDA_ESC/100);
-    const overMA = MA[i] !== null && SERIE[i] >= MA[i] && SERIE[i-1] < (MA[i-1] ?? Infinity);
-    if (sessionUp || overAvg || overMA){ sell = i; break; }
+// Datos del gráfico maestro: nacen con la demo determinista y, si Binance
+// responde, se sustituyen por ~200 sesiones REALES (ver "NIVEL PRO" más abajo).
+let SERIE = genSeries();
+let MA = movingAvg(SERIE, CONFIG.MA_PERIOD);
+let XLBL = SERIE.map((_, i) => 'S' + (i + 1));
+let DATA_REAL = false;
+let MARKERS = { buys: [], sells: [] };   // índices de operaciones pintadas en el gráfico
+
+// Marcadores del ciclo de ejemplo (demo): compras en cruces de tramos, venta en el rebote.
+(function demoMarkers(){
+  const T1_LVL = CONFIG.DEMO_PEAK * (1 + CONFIG.TRAMO1_DD/100);
+  const T2_LVL = CONFIG.DEMO_PEAK * (1 + CONFIG.TRAMO2_DD/100);
+  const peakIdx = SERIE.indexOf(Math.max(...SERIE.slice(0, 40)));
+  let buy1 = -1, buy2 = -1, sell = -1;
+  for (let i = peakIdx; i < SERIE.length; i++){
+    if (buy1 < 0 && SERIE[i] <= T1_LVL) buy1 = i;
+    if (buy2 < 0 && SERIE[i] <= T2_LVL) buy2 = i;
   }
-  if (sell < 0) sell = SERIE.length - 1;
-}
+  if (buy1 >= 0){
+    const avgCost = buy2 >= 0 ? (SERIE[buy1] + SERIE[buy2]) / 2 : SERIE[buy1];
+    for (let i = Math.max(buy1, buy2) + 1; i < SERIE.length; i++){
+      const sessionUp = (SERIE[i] / SERIE[i-1] - 1) * 100 >= CONFIG.EXIT_SESSION;
+      const overAvg = SERIE[i] >= avgCost * (1 + CONFIG.SALIDA_ESC/100);
+      const overMA = MA[i] !== null && SERIE[i] >= MA[i] && SERIE[i-1] < (MA[i-1] ?? Infinity);
+      if (sessionUp || overAvg || overMA){ sell = i; break; }
+    }
+    if (sell < 0) sell = SERIE.length - 1;
+  }
+  MARKERS.buys = [buy1, buy2].filter(i => i >= 0);
+  MARKERS.sells = sell >= 0 ? [sell] : [];
+})();
 
 /* ---------- consejo de zona (tooltip del gráfico maestro) ---------- */
 function zoneAdvice(v, peak){
@@ -1059,14 +1137,19 @@ function buildMaster(){
     renderFbMaster();
     return;
   }
-  const labels = SERIE.map((_, i) => 'S' + (i + 1));
+  const labels = XLBL;
   // marcadores como datasets de línea sin trazo (compatibles con eje de categorías)
   const mk = (idx, color, style, r) => ({
     type:'line', showLine: false, spanGaps: false,
     data: SERIE.map((v, i) => idx.includes(i) ? v : null),
     pointStyle: style, pointRadius: r, pointHoverRadius: r + 2,
-    pointBackgroundColor: color, pointBorderColor: '#0A1428', pointBorderWidth: 1.5, order: 0
+    pointBackgroundColor: color, pointBorderColor: C.card2, pointBorderWidth: 1.5, order: 0
   });
+  // escala Y adaptada a los datos; incluye la invalidación solo si queda cerca del rango
+  const dLo = Math.min(...SERIE), dHi = Math.max(...SERIE);
+  const showInv = CONFIG.INVALIDACION > dLo * 0.72 && CONFIG.INVALIDACION < dHi * 1.28;
+  const yLo = Math.min(dLo, showInv ? CONFIG.INVALIDACION : dLo) * 0.985;
+  const yHi = Math.max(dHi, showInv ? CONFIG.INVALIDACION : dHi) * 1.015;
   window.__charts.master = new Chart($('chMaster'), {
     type: 'line',
     data: {
@@ -1077,8 +1160,8 @@ function buildMaster(){
           tension: .35, fill: false, order: 1 },
         { label:'MA25', data: MA, borderColor: C.muted, borderWidth: 1.4,
           pointRadius: 0, pointHoverRadius: 0, tension: .35, fill: false, order: 2 },
-        Object.assign(mk([buy1, buy2], C.green, 'triangle', 6), { label:'Compras (tramos)' }),
-        Object.assign(mk([sell], C.gold, 'circle', 6), { label:'Venta (rotación)' })
+        Object.assign(mk(MARKERS.buys, C.green, 'triangle', 6), { label:'Compras (tramos)' }),
+        Object.assign(mk(MARKERS.sells, C.gold, 'circle', 6), { label:'Venta (rotación)' })
       ]
     },
     options: {
@@ -1093,16 +1176,16 @@ function buildMaster(){
           titleFont: { family:'DM Mono' }, bodyFont: { family:'DM Mono', size: 11 },
           filter: item => item.datasetIndex === 0,
           callbacks: {
-            title: items => items.length ? 'Sesión ' + items[0].label.slice(1) : '',
+            title: items => items.length ? (DATA_REAL ? items[0].label : 'Sesión ' + items[0].label.slice(1)) : '',
             label: item => 'ratio ' + F4(item.parsed.y),
             afterBody(items){
               if (!items.length) return '';
               const v = items[0].parsed.y;
               const lines = ['', zoneAdvice(v, getPanelPeak())];
               const i = items[0].dataIndex;
-              if (i === buy1) lines.push('● Aquí la demo compró el tramo 1');
-              if (i === buy2) lines.push('● Aquí la demo compró el tramo 2');
-              if (i === sell) lines.push('● Aquí la demo rotó SOL → ETH');
+              const who = DATA_REAL ? 'el sistema' : 'la demo';
+              if (MARKERS.buys.includes(i)) lines.push('▲ Aquí ' + who + ' compró un tramo');
+              if (MARKERS.sells.includes(i)) lines.push('● Aquí ' + who + ' rotó SOL → ETH');
               return lines;
             }
           }
@@ -1111,7 +1194,7 @@ function buildMaster(){
       scales: {
         x: { grid: { display: false }, border: { color: C.grid },
              ticks: { color: C.muted, font: { family:'DM Mono', size: 9 }, maxTicksLimit: 8 } },
-        y: { min: 0.033, max: 0.049, grid: { color: C.grid }, border: { display: false },
+        y: { min: yLo, max: yHi, grid: { color: C.grid }, border: { display: false },
              ticks: { color: C.muted, font: { family:'DM Mono', size: 9 }, callback: v => F4(v) } }
       }
     },
@@ -1167,11 +1250,16 @@ function updatePanel(){
     badge.classList.add('b-wait'); bTxt.textContent = 'ESPERANDO EN ETH';
     bNote.textContent = 'caída ' + dd.toFixed(1) + '% — sin señal todavía';
   }
-  if (window.__charts.master) window.__charts.master.update(reduceMotion ? 'none' : undefined);
+  // 'none': el panel se refresca cada pocos segundos con el tick en vivo — sin animar
+  if (window.__charts.master) window.__charts.master.update('none');
   else if (!hasChart) renderFbMaster();          // modo degradado: la tabla también responde
+  if (typeof renderSignal === 'function') renderSignal();
+  if (typeof onPeakMaybeChanged === 'function') onPeakMaybeChanged();
 }
 $('pRatio').addEventListener('input', updatePanel);
 $('pPeak').addEventListener('input', updatePanel);
+// editar el ratio a mano desconecta el modo en vivo (el tick dejaría de pisar tu valor)
+$('pRatio').addEventListener('input', e => { if (e.isTrusted && typeof setAutoFollow === 'function') setAutoFollow(false); });
 $('pPeakEdit').addEventListener('click', () => {
   const row = $('pPeakRow');
   const open = row.style.display === 'none';
@@ -1512,7 +1600,7 @@ const jGain = c => c.after - c.before;
 
 function jMetrics(){
   const n = journal.length;
-  if (!n){ ['mAvg','mBest','mWorst','mDur','mWin'].forEach(id => $(id).textContent = '—'); return; }
+  if (!n){ ['mAvg','mBest','mWorst','mDur','mWin','mPF','mDD'].forEach(id => $(id).textContent = '—'); return; }
   const gains = journal.map(jGain);
   const sum = gains.reduce((a, b) => a + b, 0);
   $('mAvg').textContent = (sum / n >= 0 ? '+' : '') + F2(sum / n) + ' ETH';
@@ -1525,6 +1613,14 @@ function jMetrics(){
     let gaps = 0; for (let i = 1; i < ds.length; i++) gaps += ds[i] - ds[i-1];
     $('mDur').textContent = Math.round(gaps / (ds.length - 1) / 86400000) + ' días';
   }
+  // métricas pro: profit factor y máximo drawdown de la curva acumulada (por fecha)
+  const wins = gains.filter(g => g > 0).reduce((a, b) => a + b, 0);
+  const losses = gains.filter(g => g < 0).reduce((a, b) => a + b, 0);
+  $('mPF').textContent = losses === 0 ? (wins > 0 ? '∞' : '—') : (wins / -losses).toFixed(2);
+  const orden = journal.slice().sort((a, b) => a.date < b.date ? -1 : 1);
+  let acc = 0, peakAcc = 0, mdd = 0;
+  orden.forEach(c => { acc += jGain(c); peakAcc = Math.max(peakAcc, acc); mdd = Math.max(mdd, peakAcc - acc); });
+  $('mDD').textContent = mdd > 0 ? '−' + F2(mdd) + ' ETH' : '0.00 ETH';
 }
 function jRender(){
   const rows = journal.map((c, i) => ({ c, i, gain: jGain(c) }));
@@ -1699,6 +1795,8 @@ function updatePanelEth(){
       el.textContent = r.toFixed(4);
       el.dataset.ratio = r.toFixed(4);
       const b = $('tkUseRatio'); if (b) b.disabled = false;
+      // hook para el nivel pro: señal en vivo, modo auto y alertas
+      if (typeof window.onLiveRatio === 'function') window.onLiveRatio(r);
     }
   }
 
@@ -1768,6 +1866,342 @@ function updatePanelEth(){
 
 readPalette();
 
+/* ==========================================================================
+   NIVEL PRO — datos reales de Binance, backtest de las reglas, señal en vivo,
+   modo auto y alertas. Todo degrada con elegancia: sin red, la app sigue
+   funcionando con la demo determinista.
+   ========================================================================== */
+
+/* ---------- estado de mercado en vivo ---------- */
+const LIVE = { ratio: null, prevClose: null, session: null, vol30: null };
+let LAST_BT = null;                     // resultado del último backtest
+
+/* ---------- klines reales: ratio SOL/ETH desde cierres diarios ---------- */
+async function fetchKlines(sym, limit){
+  const bases = ['https://api.binance.com', 'https://data-api.binance.vision'];
+  for (const base of bases){
+    try {
+      const r = await fetch(base + '/api/v3/klines?symbol=' + sym + '&interval=1d&limit=' + limit, { cache:'no-store' });
+      if (!r.ok) continue;
+      const arr = await r.json();
+      if (Array.isArray(arr) && arr.length) return arr;
+    } catch(e){ /* siguiente base */ }
+  }
+  return null;
+}
+async function loadRealSeries(limit){
+  const [sol, eth] = await Promise.all([fetchKlines('SOLUSDT', limit), fetchKlines('ETHUSDT', limit)]);
+  if (!sol || !eth) return null;
+  const ethByTime = new Map(eth.map(k => [k[0], parseFloat(k[4])]));
+  const out = [];
+  sol.forEach(k => {
+    const e = ethByTime.get(k[0]);
+    if (e > 0) out.push({ t: k[0], v: parseFloat(k[4]) / e });
+  });
+  return out.length > 60 ? out : null;
+}
+const MESES = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+const fmtDia = t => { const d = new Date(t); return d.getDate() + ' ' + MESES[d.getMonth()]; };
+
+/* ---------- backtest: las 5 reglas, tal cual están escritas ---------- */
+function runBacktest(closes, ma){
+  let peak = closes[0], eth = 100, t1 = null, t2 = null, spent = 0, sol = 0;
+  const cycles = [], events = [], equity = [100];
+  for (let i = 1; i < closes.length; i++){
+    const v = closes[i], prev = closes[i-1];
+    const dd = (v / peak - 1) * 100;
+    const frozen = v < CONFIG.INVALIDACION;                    // regla de invalidación
+    const hadPos = t1 !== null || t2 !== null;                 // posición ANTES de operar esta barra
+    // ENTRADAS escalonadas (regla 2), congeladas bajo invalidación, tope 30% (regla 3)
+    if (!frozen){
+      if (t1 === null && dd <= CONFIG.TRAMO1_DD){
+        const ethIn = eth * CONFIG.TRAMO_PCT / 100;
+        t1 = { i, v }; spent += ethIn; sol += ethIn / v; events.push({ type:'buy', i });
+      }
+      if (t2 === null && dd <= CONFIG.TRAMO2_DD){
+        const ethIn = eth * CONFIG.TRAMO_PCT / 100;
+        t2 = { i, v }; spent += ethIn; sol += ethIn / v; events.push({ type:'buy', i });
+      }
+    }
+    // SALIDA (regla 1): +5% en sesión o cruce alcista real de la MA25. Solo si había
+    // posición ANTES de esta barra — nunca comprar y vender el mismo día.
+    if (hadPos){
+      const sess = (v / prev - 1) * 100;
+      const crossMA = ma[i] !== null && ma[i-1] !== null && v >= ma[i] && prev < ma[i-1];
+      if (sess >= CONFIG.EXIT_SESSION || crossMA){
+        const entryIdx = (t1 || t2).i;
+        const back = sol * v, gain = back - spent;
+        cycles.push({ entryIdx, exitIdx: i, avgIn: spent / sol, out: v, days: i - entryIdx,
+                      before: eth, after: eth + gain, gain });
+        eth += gain; events.push({ type:'sell', i });
+        t1 = t2 = null; spent = 0; sol = 0;
+        peak = v;                                              // nuevo pico de referencia
+      }
+    }
+    // el pico solo se arrastra al alza mientras NO hay posición (esperando en ETH)
+    if (!hadPos && t1 === null && t2 === null && v > peak) peak = v;
+    // valor mark-to-market del portafolio en ETH (ETH intacto + posición SOL a precio de hoy)
+    equity.push(+(eth + (sol > 0 ? sol * v - spent : 0)).toFixed(4));
+  }
+  const open = (t1 || t2) ? { spent, sol, avgIn: spent / sol, since: (t1 || t2).i } : null;
+  return { cycles, events, finalEth: eth, finalMTM: equity[equity.length - 1], equity, peak, open };
+}
+
+/* ---------- render del backtest ---------- */
+function renderBacktest(bt, real){
+  LAST_BT = bt;
+  const n = bt.cycles.length;
+  $('btTag').textContent = real ? '● ' + SERIE.length + ' sesiones reales · Binance' : 'demo determinista (sin conexión)';
+  $('btTag').className = 'bt-tag' + (real ? ' real' : '');
+  $('btCycles').textContent = n;
+  $('btFinal').textContent = F2(bt.finalMTM) + ' ETH';
+  const d = bt.finalMTM - 100;
+  $('btDelta').textContent = (d >= 0 ? '+' : '') + F2(d) + ' ETH';
+  $('btDelta').style.color = d >= 0 ? 'var(--green)' : 'var(--red)';
+  $('btWin').textContent = n ? Math.round(bt.cycles.filter(c => c.gain > 0).length / n * 100) + '%' : '—';
+  $('btDays').textContent = n ? Math.round(bt.cycles.reduce((a, c) => a + c.days, 0) / n) : '—';
+  $('btBody').innerHTML = n ? bt.cycles.map((c, i) =>
+    '<tr><td style="text-align:left">' + (i + 1) + '</td><td>' + XLBL[c.entryIdx] + '</td><td>' + XLBL[c.exitIdx] + '</td>' +
+    '<td>' + F4(c.avgIn) + '</td><td>' + F4(c.out) + '</td><td>' + c.days + '</td>' +
+    '<td class="' + (c.gain >= 0 ? 'up' : 'down') + '">' + (c.gain >= 0 ? '+' : '') + F2(c.gain) + '</td></tr>'
+  ).join('') : '<tr><td colspan="7" style="text-align:left;color:var(--muted)">El sistema no habría cerrado ningún ciclo en esta ventana: sin señal no hay operación.</td></tr>';
+  $('btOpen').textContent = bt.open
+    ? '◌ Posición abierta al cierre: promedio ' + F4(bt.open.avgIn) + ' desde ' + XLBL[bt.open.since] +
+      ' · valor hoy ' + (bt.open.sol * SERIE[SERIE.length-1] - bt.open.spent >= 0 ? '+' : '') +
+      F2(bt.open.sol * SERIE[SERIE.length-1] - bt.open.spent) + ' ETH (no realizado)'
+    : '✓ Sin posición abierta al cierre de la ventana.';
+  // curva de equity mark-to-market: valor real del portafolio en ETH, sesión a sesión
+  const eq = bt.equity;
+  $('fbBT').innerHTML = '<tr><th>Ciclo</th><th>Δ ETH</th><th>ETH tras el ciclo</th></tr>' +
+    (n ? bt.cycles.map((c, i) => '<tr><td>' + (i + 1) + '</td><td>' + (c.gain >= 0 ? '+' : '') + F2(c.gain) + '</td><td>' + F2(c.after) + '</td></tr>').join('')
+       : '<tr><td colspan="3">Sin ciclos cerrados.</td></tr>');
+  if (!hasChart){ $('wrapBT').parentElement.classList.add('nochart'); return; }
+  if (window.__charts.bt) window.__charts.bt.destroy();
+  window.__charts.bt = new Chart($('chBT'), {
+    type: 'line',
+    data: { labels: XLBL, datasets: [{ label:'ETH del portafolio', data: eq, borderColor: C.green,
+            borderWidth: 2, pointRadius: 0, pointHoverRadius: 3, tension: .15, fill: false }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: reduceMotion ? false : { duration: 500 },
+      plugins: {
+        legend: { display: false },
+        tooltip: { backgroundColor: C.card2, borderColor: C.gold, borderWidth: 1, titleColor: C.gold,
+                   bodyColor: C.ink, bodyFont: { family:'DM Mono', size: 11 }, displayColors: false,
+                   callbacks: { label: it => ' ' + F2(it.parsed.y) + ' ETH' } }
+      },
+      scales: {
+        x: { grid: { display:false }, ticks: { color: C.muted, font: { family:'DM Mono', size: 9 }, maxTicksLimit: 8 } },
+        y: { grid: { color: C.grid }, ticks: { color: C.muted, font: { family:'DM Mono', size: 9 }, callback: v => v + ' ETH' } }
+      }
+    }
+  });
+}
+
+/* ---------- volatilidad realizada (30 sesiones) ---------- */
+function computeVol30(){
+  const rets = [];
+  for (let i = Math.max(1, SERIE.length - 30); i < SERIE.length; i++) rets.push(SERIE[i] / SERIE[i-1] - 1);
+  if (rets.length < 5) return null;
+  const mean = rets.reduce((a, b) => a + b, 0) / rets.length;
+  const va = rets.reduce((a, b) => a + (b - mean) * (b - mean), 0) / rets.length;
+  return Math.sqrt(va) * 100;                                  // % diario
+}
+
+/* ---------- señal del sistema — ahora ---------- */
+function renderSignal(){
+  const el = $('lvVerdict'); if (!el) return;
+  const r = getPanelRatio(), peak = getPanelPeak();
+  if (!r) return;
+  const dd = (r / peak - 1) * 100;
+  const t1 = peak * (1 + CONFIG.TRAMO1_DD / 100), t2 = peak * (1 + CONFIG.TRAMO2_DD / 100);
+  const ma = MA[MA.length - 1];
+  const sess = LIVE.session !== null ? LIVE.session
+             : (SERIE.length > 1 ? (SERIE[SERIE.length-1] / SERIE[SERIE.length-2] - 1) * 100 : null);
+  const set = (cls, ic, t, d) => { el.className = 'verdict ' + cls; $('lvIcon').textContent = ic; $('lvTitle').textContent = t; $('lvDesc').textContent = d; };
+
+  if (r < CONFIG.INVALIDACION){
+    set('v-frozen','🧊','Bajo invalidación — compras congeladas',
+        'El ratio (' + F4(r) + ') está bajo ' + F4(CONFIG.INVALIDACION) + '. El sistema manda reevaluar la tesis, no promediar.');
+  } else if (sess !== null && sess >= CONFIG.EXIT_SESSION){
+    set('v-sell','◎','Señal de salida activa — +' + sess.toFixed(1) + '% en la sesión',
+        'Si tienes posición en SOL, el sistema manda rotar a ETH y fijar el nuevo pico. Sin posición: no perseguir.');
+  } else if (dd <= CONFIG.TRAMO2_DD){
+    set('v-buy','▲','Tramo 2 activo — caída de ' + dd.toFixed(1) + '%',
+        'Zona del segundo 15%. Con los dos tramos llegas al tope del 30% — de ahí no se pasa.');
+  } else if (dd <= CONFIG.TRAMO1_DD){
+    set('v-buy','▲','Tramo 1 activo — caída de ' + dd.toFixed(1) + '%',
+        'Zona del primer 15% (' + F4(t1) + '). El tramo 2 esperaría en ' + F4(t2) + '.');
+  } else {
+    set('v-wait','⏸','Sin señal — esperar en ETH',
+        'Caída de ' + dd.toFixed(1) + '% desde el pico ' + F4(peak) + '. El tramo 1 se activa en ' + F4(t1) + ' (' + (100 * (t1 / r - 1)).toFixed(1) + '% abajo).');
+  }
+  const vol = LIVE.vol30, reg = vol === null ? null : vol < 2.5 ? 'tranquilo' : vol < 5 ? 'normal' : 'agitado';
+  const chips = [
+    sess !== null ? '<span class="chip' + (sess >= CONFIG.EXIT_SESSION ? ' ok' : '') + '">Δ sesión <b>' + (sess >= 0 ? '+' : '') + sess.toFixed(1) + '%</b></span>' : '',
+    ma ? '<span class="chip">MA25 <b>' + F4(ma) + '</b> · ratio ' + (r >= ma ? 'encima' : 'debajo') + '</span>' : '',
+    vol !== null ? '<span class="chip">vol 30d <b>' + vol.toFixed(1) + '%/día</b> · ' + reg + '</span>' : '',
+    '<span class="chip">T1 <b>' + F4(t1) + '</b></span>',
+    '<span class="chip">T2 <b>' + F4(t2) + '</b></span>',
+    '<span class="chip' + (r < CONFIG.INVALIDACION ? ' warn' : '') + '">INV <b>' + F4(CONFIG.INVALIDACION) + '</b></span>',
+    DATA_REAL ? '<span class="chip ok">datos <b>reales</b></span>' : '<span class="chip">datos <b>demo</b></span>'
+  ];
+  $('sigChips').innerHTML = chips.filter(Boolean).join('');
+}
+
+/* ---------- modo auto: el panel sigue el ratio en vivo ---------- */
+let autoFollow = false, lastAutoApply = 0;
+function setAutoFollow(on){
+  autoFollow = on;
+  const b = $('btnAuto'); if (!b) return;
+  b.classList.toggle('live-on', on);
+  b.setAttribute('aria-pressed', on ? 'true' : 'false');
+  b.textContent = on ? '● siguiendo en vivo' : '○ seguir en vivo';
+}
+$('btnAuto').addEventListener('click', () => {
+  setAutoFollow(!autoFollow);
+  if (autoFollow && LIVE.ratio){ $('pRatio').value = LIVE.ratio.toFixed(4); updatePanel(); }
+});
+
+/* ---------- alertas del sistema (mejora #6, paso 1) ---------- */
+const alerts = { on: false, fired: {} };
+let lastPeakSeen = null;
+function alertLevels(){
+  const peak = getPanelPeak();
+  return [
+    { id:'t1',  label:'Tramo 1 · comprar 15%',        val: peak * (1 + CONFIG.TRAMO1_DD/100), dir:'down' },
+    { id:'t2',  label:'Tramo 2 · comprar otro 15%',   val: peak * (1 + CONFIG.TRAMO2_DD/100), dir:'down' },
+    { id:'inv', label:'Invalidación · congelar',      val: CONFIG.INVALIDACION,               dir:'down' },
+    { id:'exit',label:'Salida · +' + CONFIG.EXIT_SESSION + '% en sesión', val: null,          dir:'session' }
+  ];
+}
+function onPeakMaybeChanged(){
+  const p = getPanelPeak();
+  if (lastPeakSeen !== null && Math.abs(p - lastPeakSeen) > 1e-9){ alerts.fired = {}; renderAlertList(); }
+  lastPeakSeen = p;
+}
+function renderAlertList(){
+  const ul = $('alertList'); if (!ul) return;
+  const r = LIVE.ratio;
+  ul.innerHTML = alertLevels().map(L => {
+    let st = 'armada', cls = 'armada';
+    if (alerts.fired[L.id]){ st = alerts.fired[L.id] === 'pre' ? 'ya cruzado' : 'disparada'; cls = alerts.fired[L.id] === 'pre' ? 'cruzado' : 'disparada'; }
+    else if (!alerts.on){ st = 'en espera'; cls = 'cruzado'; }
+    const price = L.val !== null ? F4(L.val) : (r && LIVE.prevClose ? '≥ ' + F4(LIVE.prevClose * (1 + CONFIG.EXIT_SESSION/100)) : '+5% intradía');
+    return '<li><span>' + L.label + '</span><span class="lv">' + price + '</span><span class="st ' + cls + '">' + st + '</span></li>';
+  }).join('');
+}
+let actx = null;
+function beep(){
+  try {
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    if (actx.state === 'suspended') actx.resume();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.frequency.value = 880; o.type = 'sine';
+    g.gain.setValueAtTime(.12, actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001, actx.currentTime + .6);
+    o.connect(g); g.connect(actx.destination);
+    o.start(); o.stop(actx.currentTime + .6);
+  } catch(e){ /* sin audio */ }
+}
+function toast(title, body){
+  let host = $('toasts');
+  if (!host){ host = document.createElement('div'); host.id = 'toasts'; document.body.appendChild(host); }
+  const t = document.createElement('div');
+  t.className = 'toastx'; t.setAttribute('role','alert');
+  t.innerHTML = '<b>' + title + '</b><br>' + body;
+  host.appendChild(t);
+  setTimeout(() => t.remove(), 9000);
+}
+function fireAlert(L, r){
+  alerts.fired[L.id] = 'fired';
+  const body = L.val !== null ? 'Nivel ' + F4(L.val) + ' · ratio ahora ' + F4(r) : 'Sesión +' + (LIVE.session || 0).toFixed(1) + '% · ratio ' + F4(r);
+  toast('⚡ ' + L.label, body);
+  beep();
+  document.title = '⚡ Señal · Sistema 369';
+  try { if ('Notification' in window && Notification.permission === 'granted') new Notification('Sistema 369 — ' + L.label, { body }); } catch(e){}
+  renderAlertList();
+}
+let prevLive = null;
+function alertsCheck(r){
+  if (alerts.on){
+    alertLevels().forEach(L => {
+      if (alerts.fired[L.id]) return;
+      if (L.dir === 'down' && prevLive !== null && prevLive > L.val && r <= L.val) fireAlert(L, r);
+      if (L.dir === 'session' && LIVE.session !== null && LIVE.session >= CONFIG.EXIT_SESSION) fireAlert(L, r);
+    });
+  }
+  prevLive = r;
+}
+$('btnAlerts').addEventListener('click', () => {
+  alerts.on = !alerts.on;
+  const b = $('btnAlerts');
+  b.textContent = alerts.on ? 'Desactivar alertas' : 'Activar alertas';
+  b.setAttribute('aria-pressed', alerts.on ? 'true' : 'false');
+  $('alertState').textContent = alerts.on ? '● vigilando el ratio en vivo' : 'desactivadas';
+  if (alerts.on){
+    // niveles ya cruzados al armar: se marcan sin disparar (evita la ráfaga inicial)
+    alerts.fired = {};
+    const r = LIVE.ratio;
+    if (r) alertLevels().forEach(L => { if (L.dir === 'down' && r <= L.val) alerts.fired[L.id] = 'pre'; });
+    beep();                                                    // gesto de usuario: desbloquea el audio
+    try { if ('Notification' in window && Notification.permission === 'default') Notification.requestPermission(); } catch(e){}
+  }
+  renderAlertList();
+});
+
+/* ---------- tick en vivo: señal + auto + alertas ---------- */
+window.onLiveRatio = r => {
+  LIVE.ratio = r;
+  if (LIVE.prevClose) LIVE.session = (r / LIVE.prevClose - 1) * 100;
+  alertsCheck(r);
+  const now = Date.now();
+  if (autoFollow && now - lastAutoApply > 2000){
+    lastAutoApply = now;
+    $('pRatio').value = r.toFixed(4);
+    updatePanel();
+  } else if (!autoFollow && now - lastAutoApply > 5000){
+    lastAutoApply = now;
+    renderSignal();                                            // la señal respira aunque no sigas en vivo
+  }
+};
+
+/* ---------- adopción de datos reales ---------- */
+async function loadRealData(){
+  const kl = await loadRealSeries(200);
+  if (!kl){
+    // sin red o geo-bloqueo: backtest sobre la demo, honestamente etiquetado.
+    // Los marcadores del gráfico salen del MISMO backtest (no de la lógica demo).
+    const bt = runBacktest(SERIE, MA);
+    MARKERS.buys = [...new Set(bt.events.filter(e => e.type === 'buy').map(e => e.i))];
+    MARKERS.sells = bt.events.filter(e => e.type === 'sell').map(e => e.i);
+    if (window.__charts.master){ window.__charts.master.destroy(); delete window.__charts.master; }
+    buildMaster();
+    renderBacktest(bt, false);
+    renderSignal(); renderAlertList();
+    return;
+  }
+  SERIE = kl.map(k => k.v);
+  MA = movingAvg(SERIE, CONFIG.MA_PERIOD);
+  XLBL = kl.map(k => fmtDia(k.t));
+  DATA_REAL = true;
+  LIVE.prevClose = SERIE[SERIE.length - 2];
+  LIVE.vol30 = computeVol30();
+  const bt = runBacktest(SERIE, MA);
+  MARKERS.buys = [...new Set(bt.events.filter(e => e.type === 'buy').map(e => e.i))];
+  MARKERS.sells = bt.events.filter(e => e.type === 'sell').map(e => e.i);
+  // pico de referencia real: el que el sistema llevaría hoy tras todo el histórico
+  $('pPeak').value = bt.peak.toFixed(4);
+  if (LIVE.ratio) $('pRatio').value = LIVE.ratio.toFixed(4);
+  $('masterNote').innerHTML = '● <b>' + SERIE.length + ' sesiones reales</b> (cierres diarios de Binance, ratio SOL/ETH derivado). Los marcadores son las operaciones que las reglas habrían ejecutado. Pasa el cursor: el tooltip dice qué haría el sistema en cada zona.';
+  if (window.__charts.master){ window.__charts.master.destroy(); delete window.__charts.master; }
+  buildMaster();
+  renderBacktest(bt, true);
+  setAutoFollow(true);                                         // un pro sigue el mercado en vivo
+  updatePanel();
+  renderAlertList();
+}
+
 /* ---------- arranque ---------- */
 jLoad();
 buildMaster();
@@ -1781,6 +2215,8 @@ updateSim();
 updateCalc();
 setGauge(0);
 $('jDate').value = new Date().toISOString().slice(0, 10);
+renderAlertList();
+loadRealData();     // datos reales de Binance → gráfico maestro + backtest + señal
 </script>
 </body>
 </html>
