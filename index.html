@@ -1,0 +1,1786 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema 369 — Terminal educativa SOL/ETH</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,500;0,700;1,500&family=DM+Sans:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  /* ============ IDENTIDAD · Papel privado (tema único) ============ */
+  /* Paleta clara editorial fijada como identidad de la app. Toda la piel
+     vive en estas variables; cambiarlas re-tematiza todo desde un solo lugar. */
+  :root{
+    --bg1:#F4EFE4; --bg2:#EDE6D6; --c3:#F7F3EA; --card:#FBF8F1; --card2:#F2EBDC;
+    --gold:#9A7B22; --gold-soft:rgba(184,145,46,.16);
+    --ink:#1A1F2E; --muted:#6B7280; --line:rgba(154,123,34,.32);
+    --green:#2E7D5B; --red:#C0392B;
+    --nav-bg:rgba(244,239,228,.92); --grid:rgba(26,31,46,.10); --label-bg:rgba(251,248,241,.92);
+    --glass-a:rgba(251,248,241,.78); --glass-b:rgba(242,235,220,.62);
+    --hero-a:rgba(184,145,46,.14); --hero-b:rgba(46,125,91,.10); --grain-op:.35;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:'DM Sans',sans-serif; color:var(--ink);
+    background:linear-gradient(160deg,var(--bg1) 0%,var(--bg2) 60%,var(--c3) 100%);
+    min-height:100vh; line-height:1.6;
+    transition:background .5s ease, color .4s ease;
+  }
+  /* textura/grano sutil, coherente en claro y oscuro (mezcla overlay) */
+  body::before{
+    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
+    opacity:var(--grain-op);mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+  .wrap{position:relative;z-index:1}
+  .wrap{max-width:960px;margin:0 auto;padding:0 16px 80px}
+  header{padding:48px 0 22px;text-align:center}
+  .eyebrow{font-family:'DM Mono',monospace;font-size:.72rem;letter-spacing:.34em;color:var(--gold);text-transform:uppercase;display:inline-flex;align-items:center;gap:10px}
+  .eyebrow::before,.eyebrow::after{content:"";width:22px;height:1px;background:var(--line)}
+  h1{font-family:'Playfair Display',serif;font-weight:700;font-size:clamp(2.1rem,6.6vw,3.3rem);line-height:1.04;letter-spacing:-.015em;margin:14px 0 8px}
+  h1 em{font-style:italic;color:var(--gold)}
+  .sub{color:var(--muted);max-width:560px;margin:0 auto;font-size:.98rem}
+
+  /* ============ NAV (sticky, 6 tabs) ============ */
+  nav{
+    position:sticky;top:0;z-index:20;display:flex;gap:6px;
+    padding:12px 4px;background:var(--nav-bg);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+    border-bottom:1px solid var(--line);margin-bottom:22px;transition:background .5s ease;
+    overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch;
+  }
+  nav::-webkit-scrollbar{display:none}
+  @media(min-width:760px){nav{justify-content:center;flex-wrap:wrap;overflow:visible}}
+  nav button{
+    font-family:'DM Sans',sans-serif;font-weight:500;font-size:.85rem;white-space:nowrap;
+    color:var(--muted);background:transparent;border:1px solid transparent;
+    padding:8px 15px;border-radius:999px;cursor:pointer;transition:all .2s;flex:0 0 auto;
+  }
+  nav button:hover{color:var(--ink)}
+  nav button.active{color:var(--gold);border-color:var(--line);background:var(--gold-soft)}
+  nav button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .panel{display:none;animation:fade .35s ease}
+  .panel.show{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+
+  h2{font-family:'Playfair Display',serif;font-weight:500;font-size:1.68rem;letter-spacing:-.012em;margin:0 0 4px}
+  .lede{color:var(--muted);margin-bottom:22px;font-size:.92rem}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;margin-bottom:16px}
+  .card h3{font-family:'Playfair Display',serif;font-weight:500;font-size:1.08rem;color:var(--gold);margin-bottom:8px}
+  .card p{font-size:.92rem;color:var(--ink)}
+  .card p + p{margin-top:10px}
+  .muted{color:var(--muted)}
+  mark{background:var(--gold-soft);color:var(--gold);padding:1px 6px;border-radius:4px;font-family:'DM Mono',monospace;font-size:.86em}
+  .num{font-family:'DM Mono',monospace;color:var(--gold)}
+  .mono{font-family:'DM Mono',monospace}
+
+  /* ============ PANEL (dashboard) ============ */
+  .stats{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+  @media(min-width:760px){.stats{grid-template-columns:repeat(4,1fr)}}
+  .stat{
+    position:relative;border:1px solid var(--line);border-radius:14px;padding:14px 16px;
+    background:linear-gradient(145deg,var(--glass-a),var(--glass-b));
+    backdrop-filter:blur(14px) saturate(1.2);-webkit-backdrop-filter:blur(14px) saturate(1.2);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.05), 0 12px 30px -16px rgba(0,0,0,.6);
+    transition:border-color .25s, transform .25s, box-shadow .25s, background .5s ease;
+  }
+  .stat:hover{border-color:var(--gold);transform:translateY(-3px);box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 18px 40px -18px rgba(0,0,0,.7)}
+  .stat .k{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin-bottom:6px}
+  .stat .v{font-family:'DM Mono',monospace;font-size:1.28rem;color:var(--ink);line-height:1.2}
+  .stat .v.gold{color:var(--gold)}
+  .stat .s{font-size:.72rem;color:var(--muted);margin-top:4px;line-height:1.35}
+  .stat input[type=number]{
+    width:100%;background:rgba(10,20,40,.6);border:1px solid var(--line);border-radius:8px;
+    color:var(--gold);font-family:'DM Mono',monospace;font-size:1.15rem;padding:4px 8px;
+  }
+  .stat input[type=number]:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+
+  .badge{
+    display:inline-flex;align-items:center;gap:8px;font-family:'DM Mono',monospace;
+    font-size:.72rem;letter-spacing:.12em;text-transform:uppercase;
+    padding:5px 12px;border-radius:999px;border:1px solid var(--line);
+  }
+  .badge .dot{width:8px;height:8px;border-radius:50%;background:currentColor}
+  .badge.b-wait{color:var(--muted);border-color:rgba(139,150,173,.4)}
+  .badge.b-accum{color:var(--green);border-color:rgba(76,175,125,.45);background:rgba(76,175,125,.08)}
+  .badge.b-rotate{color:var(--gold);border-color:var(--gold);background:var(--gold-soft)}
+  .badge.b-frozen{color:var(--red);border-color:rgba(224,92,92,.5);background:rgba(224,92,92,.08)}
+  .badge.pulse .dot{animation:pulse 1.6s ease-in-out infinite}
+  @keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 currentColor}50%{opacity:.55;box-shadow:0 0 0 4px rgba(212,175,55,.12)}}
+
+  .chart-wrap{position:relative;height:300px;z-index:1}
+  @media(min-width:760px){.chart-wrap{height:380px}}
+  .chart-wrap.short{height:220px}
+
+  /* ============ TICKER DE PRECIOS EN VIVO (Binance) ============ */
+  .ticker{
+    display:flex;align-items:stretch;gap:8px;flex-wrap:wrap;justify-content:center;
+    margin:0 0 4px;padding:8px;border:1px solid var(--line);border-radius:14px;
+    background:linear-gradient(145deg,var(--glass-a),var(--glass-b));
+    backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.4), 0 10px 26px -18px rgba(0,0,0,.45);
+  }
+  .tk{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:10px;background:var(--card);border:1px solid var(--line)}
+  .tk-ic{width:22px;height:22px;flex:0 0 auto;display:flex;align-items:center;justify-content:center;border-radius:50%;font-family:'DM Mono',monospace;font-size:.72rem;font-weight:500;background:var(--gold-soft);color:var(--gold)}
+  .tk-name{font-family:'DM Mono',monospace;font-size:.7rem;letter-spacing:.1em;color:var(--muted)}
+  .tk-price{font-family:'DM Mono',monospace;font-size:.92rem;color:var(--ink);min-width:64px;text-align:right;transition:color .15s}
+  .tk-price.up{animation:tkUp .7s ease}
+  .tk-price.down{animation:tkDown .7s ease}
+  @keyframes tkUp{0%{color:var(--green)}100%{color:var(--ink)}}
+  @keyframes tkDown{0%{color:var(--red)}100%{color:var(--ink)}}
+  .tk-chg{font-family:'DM Mono',monospace;font-size:.72rem;min-width:52px;text-align:right}
+  .tk-chg.pos{color:var(--green)} .tk-chg.neg{color:var(--red)}
+  .tk-ratio{background:var(--gold-soft);border-color:var(--gold)}
+  .tk-ratio .tk-name{color:var(--gold)}
+  .tk-use{font-family:'DM Sans',sans-serif;font-size:.66rem;font-weight:700;cursor:pointer;border:1px solid var(--gold);color:var(--gold);background:transparent;border-radius:8px;padding:3px 8px;transition:all .18s}
+  .tk-use:hover:not(:disabled){background:var(--gold);color:var(--card)}
+  .tk-use:disabled{opacity:.4;cursor:not-allowed}
+  .tk-use:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .tk-status{display:flex;align-items:center;font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.08em;color:var(--muted);padding:0 8px;white-space:nowrap}
+  .tk-status.live{color:var(--green)} .tk-status.stale{color:var(--gold)} .tk-status.off{color:var(--red)}
+
+  /* ============ HÉROE ANIMADO (tras el gráfico maestro) ============ */
+  #masterCard{position:relative;overflow:hidden}
+  #masterCard::before{
+    content:"";position:absolute;inset:0;z-index:0;pointer-events:none;
+    background:
+      radial-gradient(42% 55% at 24% 30%,var(--hero-a),transparent 70%),
+      radial-gradient(46% 62% at 78% 62%,var(--hero-b),transparent 72%);
+    animation:heroFloat 18s ease-in-out infinite;
+  }
+  #masterCard > *{position:relative;z-index:1}
+  @keyframes heroFloat{
+    0%,100%{transform:translate3d(0,0,0) scale(1);opacity:.85}
+    50%{transform:translate3d(3%,2.5%,0) scale(1.12);opacity:1}
+  }
+  .bandlegend{display:flex;flex-wrap:wrap;gap:10px 16px;margin-top:14px;font-size:.7rem;color:var(--muted)}
+  .bandlegend span{display:inline-flex;align-items:center;gap:6px;font-family:'DM Mono',monospace}
+  .bandlegend i{display:inline-block;width:18px;height:0;border-top:2px solid}
+  .bandlegend i.dash{border-top-style:dashed}
+  .bandlegend b{display:inline-block;width:9px;height:9px;border-radius:50%}
+  .bandlegend .tri{width:0;height:0;border-left:5px solid transparent;border-right:5px solid transparent;border-bottom:9px solid var(--green)}
+
+  /* ============ CICLO SVG ============ */
+  .cycle-flex{display:grid;grid-template-columns:1fr;gap:18px;align-items:center;margin:20px 0}
+  @media(min-width:760px){.cycle-flex{grid-template-columns:340px 1fr}}
+  .cycle-svg{width:100%;max-width:340px;margin:0 auto;display:block}
+  .cycle-svg .ring{stroke:var(--gold);opacity:.5;animation:spin 48s linear infinite;transform-origin:170px 170px}
+  .cycle-svg .ring-static{stroke:var(--line)}
+  .cycle-svg .c-title{fill:var(--gold)}
+  .cycle-svg .c-sub{fill:var(--muted)}
+  .cycle-svg .c-arrows{fill:var(--gold);opacity:.75}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .cnode circle{fill:var(--card2);stroke:var(--line);stroke-width:1.5;transition:all .4s;cursor:pointer}
+  .cnode text{fill:var(--muted);font-family:'DM Mono',monospace;font-size:13px;transition:fill .4s;pointer-events:none}
+  .cnode .lab{font-family:'DM Sans',sans-serif;font-size:10.5px;letter-spacing:.04em}
+  .cnode.on circle{fill:var(--gold);stroke:var(--gold)}
+  .cnode.on text{fill:#0A1428}
+  .cnode.on .lab{fill:var(--gold)}
+  .cnode.on ~ * .lab{}
+  .cnode:focus-visible{outline:2px solid var(--gold);outline-offset:2px;border-radius:50%}
+  .cstep{border-left:2px solid transparent;padding:10px 14px;border-radius:0 10px 10px 0;transition:all .35s;margin-bottom:6px}
+  .cstep .s-title{font-weight:700;margin-bottom:2px;font-size:.92rem}
+  .cstep p{font-size:.85rem;color:var(--muted)}
+  .cstep.on{border-left-color:var(--gold);background:var(--gold-soft)}
+  .cstep.on p{color:var(--ink)}
+  .cstep b{color:var(--gold)}
+
+  /* ============ REGLAS ============ */
+  .rule{border-left:2px solid var(--gold);padding-left:16px;margin-bottom:20px}
+  .rule .r-name{font-weight:700;font-size:.95rem}
+  .rule .r-why{font-size:.86rem;color:var(--muted);margin-top:4px}
+  .rule .r-what{font-size:.92rem;margin-top:4px}
+  .sigtbl{width:100%;border-collapse:collapse;font-size:.8rem}
+  .sigtbl th{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.18em;text-transform:uppercase;color:var(--gold);text-align:left;padding:8px 10px;border-bottom:1px solid var(--line)}
+  .sigtbl td{padding:10px;border-bottom:1px dashed rgba(212,175,55,.12);vertical-align:top}
+  .sigtbl tr:last-child td{border-bottom:none}
+  .sigtbl .si{color:var(--ink)}
+  .sigtbl .ent{color:var(--muted)}
+  .sigtbl .tam{font-family:'DM Mono',monospace;color:var(--gold);white-space:nowrap}
+  .tbl-scroll{overflow-x:auto}
+  .tag{display:inline-block;font-family:'DM Mono',monospace;font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;padding:3px 10px;border-radius:999px;border:1px solid var(--line);color:var(--gold);margin-bottom:10px}
+  .tag.now{background:var(--gold);color:#0A1428;border-color:var(--gold)}
+
+  /* ============ FORMULARIOS / CONTROLES ============ */
+  .fld{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+  .fld label{font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .fld input{
+    background:rgba(10,20,40,.6);border:1px solid var(--line);border-radius:8px;
+    color:var(--ink);font-family:'DM Mono',monospace;font-size:.95rem;padding:8px 10px;width:100%;
+  }
+  .fld input:focus-visible{outline:2px solid var(--gold);outline-offset:1px}
+  .frow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(min-width:760px){.frow.c3{grid-template-columns:1fr 1fr 1fr}.frow.c5{grid-template-columns:repeat(5,1fr)}}
+  .btn{
+    font-family:'DM Sans',sans-serif;font-weight:700;font-size:.85rem;cursor:pointer;
+    border-radius:10px;padding:10px 18px;border:1px solid var(--line);
+    background:transparent;color:var(--ink);transition:all .2s;
+  }
+  .btn:hover{border-color:var(--gold);color:var(--gold)}
+  .btn:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  .btn.gold{background:var(--gold);color:#0A1428;border-color:var(--gold)}
+  .btn.gold:hover{filter:brightness(1.08);color:#0A1428}
+  .btn:disabled{opacity:.35;cursor:not-allowed;filter:none}
+  .btn:disabled:hover{border-color:var(--line);color:var(--ink)}
+  .btn.gold:disabled:hover{color:#0A1428}
+  .btn.sm{padding:6px 12px;font-size:.75rem}
+
+  /* barra de exposición */
+  .expo-bar{height:12px;border-radius:999px;background:rgba(10,20,40,.7);border:1px solid var(--line);overflow:hidden;position:relative}
+  .expo-fill{height:100%;width:0%;border-radius:999px;background:var(--green);transition:width .4s,background .4s}
+  .expo-fill.warn{background:var(--gold)}
+  .expo-fill.max{background:var(--red)}
+  .expo-cap{font-family:'DM Mono',monospace;font-size:.66rem;color:var(--muted);display:flex;justify-content:space-between;margin-top:4px}
+
+  /* slider */
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:6px;border-radius:999px;background:linear-gradient(90deg,var(--red) 0 12%,rgba(139,150,173,.35) 12% 100%);outline:none;margin:14px 0 6px}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:22px;height:22px;border-radius:50%;background:var(--gold);border:3px solid #0A1428;box-shadow:0 0 0 1px var(--gold);cursor:grab}
+  input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--gold);border:3px solid #0A1428;box-shadow:0 0 0 1px var(--gold);cursor:grab}
+  input[type=range]:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
+
+  /* checklist */
+  .ck{list-style:none}
+  .ck li{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px dashed rgba(212,175,55,.12);font-size:.86rem}
+  .ck li:last-child{border-bottom:none}
+  .ck input[type=checkbox]{width:17px;height:17px;accent-color:var(--gold);margin-top:2px;flex:0 0 auto;cursor:pointer}
+  .ck label{cursor:pointer}
+  .ck .r{color:var(--muted);font-size:.78rem}
+  .ck-count{font-family:'DM Mono',monospace;font-size:.72rem;color:var(--gold)}
+
+  /* verdicto del simulador */
+  .verdict{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin:12px 0;display:flex;gap:12px;align-items:center;transition:border-color .3s}
+  .verdict .ic{font-size:1.3rem;line-height:1}
+  .verdict .t{font-weight:700;font-size:.92rem}
+  .verdict .d{font-size:.8rem;color:var(--muted)}
+  .verdict.v-wait{border-color:rgba(139,150,173,.4)}
+  .verdict.v-buy{border-color:rgba(76,175,125,.55)}
+  .verdict.v-buy .t{color:var(--green)}
+  .verdict.v-sell{border-color:var(--gold)}
+  .verdict.v-sell .t{color:var(--gold)}
+  .verdict.v-frozen{border-color:rgba(224,92,92,.6)}
+  .verdict.v-frozen .t{color:var(--red)}
+
+  /* ============ BITÁCORA ============ */
+  .metric-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:16px}
+  @media(min-width:760px){.metric-grid{grid-template-columns:repeat(5,1fr)}}
+  .metric{background:var(--card2);border:1px solid var(--line);border-radius:12px;padding:12px}
+  .metric .k{font-family:'DM Mono',monospace;font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
+  .metric .v{font-family:'DM Mono',monospace;font-size:1.05rem;color:var(--gold);margin-top:4px}
+  table.jtbl{width:100%;border-collapse:collapse;font-size:.78rem}
+  .jtbl th{font-family:'DM Mono',monospace;font-size:.6rem;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);padding:8px 6px;border-bottom:1px solid var(--line);text-align:right;cursor:pointer;user-select:none;white-space:nowrap}
+  .jtbl th:first-child{text-align:left}
+  .jtbl th:hover{color:var(--ink)}
+  .jtbl th .arr{opacity:.7;font-size:.55rem}
+  .jtbl td{font-family:'DM Mono',monospace;padding:8px 6px;border-bottom:1px dashed rgba(212,175,55,.12);text-align:right;color:var(--ink);white-space:nowrap}
+  .jtbl td:first-child{text-align:left;color:var(--muted)}
+  .jtbl td.up{color:var(--green)}
+  .jtbl td.down{color:var(--red)}
+  .jtbl td .del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:.8rem;padding:2px 6px;border-radius:6px}
+  .jtbl td .del:hover{color:var(--red)}
+  .jtbl td .del:focus-visible{outline:2px solid var(--gold)}
+
+  /* ============ RIESGOS ============ */
+  .risk-grid{display:grid;grid-template-columns:1fr;gap:14px}
+  @media(min-width:640px){.risk-grid{grid-template-columns:1fr 1fr}}
+  .risk .r-mit{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:.86rem}
+  .risk .r-mit b{color:var(--green)}
+  .gauge-svg{width:100%;max-width:380px;display:block;margin:0 auto}
+  /* el gauge adopta la paleta del tema (CSS pisa los atributos stroke/fill del SVG) */
+  #gArcGreen{stroke:var(--green)} #gArcAmber{stroke:var(--gold)} #gArcRed{stroke:var(--red)}
+  #gNeedle line{stroke:var(--ink)} #gNeedle circle{fill:var(--ink)}
+  .quote{
+    border:1px solid var(--gold);background:var(--gold-soft);border-radius:14px;
+    padding:26px;margin-top:20px;text-align:center;
+  }
+  .quote p{font-family:'Playfair Display',serif;font-style:italic;font-size:1.12rem;line-height:1.7}
+  .quote b{color:var(--gold)}
+
+  /* ============ GLOSARIO ============ */
+  .gl{border-bottom:1px dotted var(--gold);cursor:help;text-decoration:none;color:inherit}
+  .gl:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  #glosstip{
+    position:fixed;z-index:60;max-width:280px;background:var(--card2);border:1px solid var(--gold);
+    border-radius:10px;padding:10px 12px;font-size:.78rem;color:var(--ink);line-height:1.5;
+    box-shadow:0 8px 30px rgba(0,0,0,.5);pointer-events:none;opacity:0;transition:opacity .15s;
+  }
+  #glosstip.show{opacity:1}
+  #glosstip .term{font-family:'DM Mono',monospace;font-size:.64rem;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);display:block;margin-bottom:3px}
+
+  /* fallback sin Chart.js */
+  .chart-fallback{display:none;font-size:.78rem}
+  .nochart .chart-fallback{display:block}
+  .nochart canvas{display:none}
+  .nochart .chart-wrap{height:auto}
+  .fb-tbl{width:100%;border-collapse:collapse;font-family:'DM Mono',monospace;font-size:.74rem}
+  .fb-tbl th,.fb-tbl td{padding:6px 8px;border-bottom:1px dashed rgba(212,175,55,.15);text-align:right;color:var(--ink)}
+  .fb-tbl th{color:var(--gold);text-align:right;font-weight:400;text-transform:uppercase;font-size:.6rem;letter-spacing:.12em}
+  .fb-tbl th:first-child,.fb-tbl td:first-child{text-align:left}
+  .fb-note{color:var(--muted);font-size:.7rem;margin:8px 0;font-family:'DM Mono',monospace}
+
+  footer{margin-top:48px;text-align:center;color:var(--muted);font-size:.75rem;border-top:1px solid var(--line);padding-top:20px}
+  footer .brand{font-family:'DM Mono',monospace;letter-spacing:.2em;color:var(--gold);font-size:.7rem;text-transform:uppercase;margin-bottom:6px}
+
+  .sim2col{display:grid;grid-template-columns:1fr;gap:14px;align-items:center}
+  @media(min-width:760px){.sim2col{grid-template-columns:1fr 1fr}}
+
+  /* ============ MOVIMIENTO REDUCIDO ============ */
+  @media (prefers-reduced-motion:reduce){
+    html{scroll-behavior:auto}
+    .panel{animation:none}
+    .badge.pulse .dot{animation:none}
+    .cycle-svg .ring{animation:none}
+    .stat:hover{transform:none}
+    #masterCard::before{animation:none}
+    *{transition-duration:.01ms !important}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">bitCODE Trading Labs · Omraam Group</div>
+  <h1>Sistema <em>369</em></h1>
+  <p class="sub">Terminal educativa del par SOL/ETH — la guía, las reglas, el simulador y la bitácora en un solo lugar.</p>
+</header>
+
+<div class="ticker" id="ticker" role="group" aria-label="Precios en vivo de Binance">
+  <div class="tk" aria-label="Bitcoin">
+    <span class="tk-ic" aria-hidden="true">₿</span><span class="tk-name">BTC</span>
+    <span class="tk-price" id="pxBTC" role="status" aria-live="off">—</span><span class="tk-chg" id="chBTC"></span>
+  </div>
+  <div class="tk" aria-label="Ethereum">
+    <span class="tk-ic" aria-hidden="true">Ξ</span><span class="tk-name">ETH</span>
+    <span class="tk-price" id="pxETH" role="status" aria-live="off">—</span><span class="tk-chg" id="chETH"></span>
+  </div>
+  <div class="tk" aria-label="Solana">
+    <span class="tk-ic" aria-hidden="true">◎</span><span class="tk-name">SOL</span>
+    <span class="tk-price" id="pxSOL" role="status" aria-live="off">—</span><span class="tk-chg" id="chSOL"></span>
+  </div>
+  <div class="tk tk-ratio" aria-label="Ratio SOL sobre ETH en vivo">
+    <span class="tk-name">SOL/ETH</span>
+    <span class="tk-price" id="pxRATIO">—</span>
+    <button class="tk-use" id="tkUseRatio" type="button" disabled title="Usar este ratio en el Panel">→ Panel</button>
+  </div>
+  <span class="tk-status" id="tkStatus">conectando…</span>
+</div>
+
+<nav id="tabs" role="tablist" aria-label="Secciones de la guía">
+  <button class="active" data-tab="panel" id="tab-panel" role="tab" aria-selected="true" aria-controls="p-panel">Panel</button>
+  <button data-tab="simple" id="tab-simple" role="tab" aria-selected="false" aria-controls="p-simple" tabindex="-1">En simple</button>
+  <button data-tab="reglas" id="tab-reglas" role="tab" aria-selected="false" aria-controls="p-reglas" tabindex="-1">Las reglas</button>
+  <button data-tab="simulador" id="tab-simulador" role="tab" aria-selected="false" aria-controls="p-simulador" tabindex="-1">Simulador</button>
+  <button data-tab="bitacora" id="tab-bitacora" role="tab" aria-selected="false" aria-controls="p-bitacora" tabindex="-1">Bitácora</button>
+  <button data-tab="riesgos" id="tab-riesgos" role="tab" aria-selected="false" aria-controls="p-riesgos" tabindex="-1">Riesgos</button>
+</nav>
+
+<!-- ===== TAB 1 · PANEL ===== -->
+<section class="panel show" id="p-panel" role="tabpanel" aria-labelledby="tab-panel">
+  <h2>Panel de control</h2>
+  <p class="lede">Todo el sistema, de un vistazo. Edita el <span class="gl" tabindex="0" data-gl="ratio">ratio</span> actual y el panel responde en tiempo real.</p>
+
+  <div class="stats">
+    <div class="stat">
+      <div class="k">Ratio SOL/ETH actual</div>
+      <input type="number" id="pRatio" step="0.0001" min="0.02" max="0.08" value="0.0412" aria-label="Ratio SOL/ETH actual">
+      <div class="s">Pico de referencia: <span class="mono" id="pPeakLbl">0.0465</span> · <button class="btn sm" id="pPeakEdit" style="padding:2px 8px;font-size:.62rem" aria-controls="pPeakRow" aria-expanded="false">editar pico</button></div>
+      <div class="s" id="pPeakRow" style="display:none"><input type="number" id="pPeak" step="0.0001" min="0.02" max="0.08" value="0.0465" aria-label="Ratio pico de referencia"></div>
+    </div>
+    <div class="stat" role="status" aria-live="polite">
+      <div class="k">Próximo tramo de compra</div>
+      <div class="v gold" id="pDist">—</div>
+      <div class="s" id="pDistNote">distancia al tramo 1</div>
+    </div>
+    <div class="stat" role="status" aria-live="polite">
+      <div class="k">Estado del ciclo</div>
+      <div style="margin-top:6px"><span class="badge b-wait pulse" id="pBadge"><span class="dot" aria-hidden="true"></span><span id="pBadgeTxt">ESPERANDO EN ETH</span></span></div>
+      <div class="s" id="pBadgeNote">sin señal activa</div>
+    </div>
+    <div class="stat">
+      <div class="k">ETH acumulado (bitácora)</div>
+      <div class="v gold" id="pEth">0.00</div>
+      <div class="s" id="pEthNote">en 0 ciclos cerrados</div>
+    </div>
+  </div>
+
+  <div class="card" id="masterCard">
+    <h3>Gráfico maestro — el sistema pintado sobre el ratio</h3>
+    <p class="muted" style="font-size:.8rem;margin-bottom:12px">~120 sesiones simuladas (demo determinista). Pasa el cursor: el tooltip dice qué haría el sistema en cada zona.</p>
+    <div class="chart-wrap" id="wrapMaster">
+      <canvas id="chMaster" role="img" aria-label="Gráfico de línea del ratio SOL/ETH con bandas del sistema: pico, tramos de compra a menos 10 y menos 15 por ciento, invalidación en 0.0355, media móvil de 25 sesiones y marcadores de compra y venta"></canvas>
+      <div class="chart-fallback">
+        <p class="fb-note">El gráfico no pudo cargarse (CDN bloqueado). Estos son los niveles del sistema:</p>
+        <table class="fb-tbl" id="fbMaster"></table>
+      </div>
+    </div>
+    <div class="bandlegend" aria-hidden="true">
+      <span><i style="border-color:var(--gold)"></i> pico de referencia</span>
+      <span><i class="dash" style="border-color:var(--gold)"></i> tramo 1 (−10%) · tramo 2 (−15%)</span>
+      <span><i style="border-color:var(--red)"></i> invalidación 0.0355</span>
+      <span><i style="border-color:var(--muted)"></i> MA25</span>
+      <span><b class="tri"></b> compra</span>
+      <span><b style="background:var(--gold)"></b> venta</span>
+      <span><i class="dash" style="border-color:var(--ink)"></i> ratio actual (editable)</span>
+    </div>
+  </div>
+</section>
+
+<!-- ===== TAB 2 · EN SIMPLE ===== -->
+<section class="panel" id="p-simple" role="tabpanel" aria-labelledby="tab-simple">
+  <h2>La idea central en una frase</h2>
+  <p class="lede">Casi todo el mundo mide su portafolio en dólares. Este sistema no.</p>
+
+  <div class="card">
+    <h3>Tu unidad de cuenta es ETH, no el dólar</h3>
+    <p>Imagina que tu riqueza no son dólares sino <b>monedas de oro</b> (aquí, ETH). El juego no es "¿cuántos dólares valgo hoy?" sino <b>"¿cuántas monedas tengo hoy vs. ayer?"</b>. El precio de ETH en dólares puede subir y bajar — no importa. Lo único que cuenta es que el número de monedas <b>solo suba</b>. Esa es tu <span class="gl" tabindex="0" data-gl="unidad">unidad de cuenta</span>.</p>
+    <p class="muted">¿Por qué? Porque elimina el 80% del ruido emocional. Un día rojo del mercado ya no es una pérdida: si sigues teniendo las mismas monedas, no perdiste nada en tu unidad de cuenta.</p>
+  </div>
+
+  <div class="card">
+    <h3>¿Y entonces para qué SOL?</h3>
+    <p>SOL es la <b>herramienta para fabricar más ETH</b>. SOL y ETH se mueven parecido, pero no igual: a veces SOL cae más fuerte contra ETH, y luego rebota más fuerte. Esa oscilación del par <mark>SOL/ETH</mark> es la mina que este sistema explota.</p>
+    <p>La jugada: comprar SOL cuando está <b>barato medido en ETH</b>, y venderlo cuando está caro medido en ETH. Al cerrar el ciclo con la <span class="gl" tabindex="0" data-gl="rotacion">rotación</span>, terminas con <b>más ETH que al inicio</b> — sin importar qué hizo el dólar.</p>
+  </div>
+
+  <h2 style="margin-top:32px">El ciclo completo</h2>
+  <p class="lede">Es un bucle de cuatro pasos que se repite. Un ciclo real ya cerrado produjo <span class="num">+9 ETH</span>. Toca cada nodo del diagrama.</p>
+
+  <div class="card">
+    <div class="cycle-flex">
+      <svg class="cycle-svg" viewBox="0 0 340 340" role="group" aria-label="Diagrama del ciclo de cuatro pasos; cada nodo es un botón">
+        <circle class="ring" cx="170" cy="170" r="118" fill="none" stroke-width="1.5" stroke-dasharray="4 7" aria-hidden="true"/>
+        <circle class="ring-static" cx="170" cy="170" r="118" fill="none" stroke-width="1" aria-hidden="true"/>
+        <text class="c-title" x="170" y="164" text-anchor="middle" font-family="Playfair Display,serif" font-size="17" font-style="italic" aria-hidden="true">el ciclo</text>
+        <text class="c-sub" x="170" y="184" text-anchor="middle" font-family="DM Mono,monospace" font-size="10" letter-spacing="2" aria-hidden="true">SOL &#8644; ETH</text>
+        <g class="c-arrows" aria-hidden="true">
+          <path d="M 262 92 l 12 8 l -14 4 z"/>
+          <path d="M 248 262 l -8 12 l -4 -14 z"/>
+          <path d="M 78 248 l -12 -8 l 14 -4 z"/>
+          <path d="M 92 78 l 8 -12 l 4 14 z"/>
+        </g>
+        <g class="cnode" data-step="0" tabindex="0" role="button" aria-label="Paso 1: espera en ETH">
+          <circle cx="170" cy="42" r="26"/>
+          <text x="170" y="47" text-anchor="middle">1</text>
+          <text class="lab" x="170" y="90" text-anchor="middle" fill="#8B96AD">espera en ETH</text>
+        </g>
+        <g class="cnode" data-step="1" tabindex="0" role="button" aria-label="Paso 2: compra SOL por tramos">
+          <circle cx="298" cy="170" r="26"/>
+          <text x="298" y="175" text-anchor="middle">2</text>
+          <text class="lab" x="298" y="216" text-anchor="middle" fill="#8B96AD">compra tramos</text>
+        </g>
+        <g class="cnode" data-step="2" tabindex="0" role="button" aria-label="Paso 3: espera la rotación">
+          <circle cx="170" cy="298" r="26"/>
+          <text x="170" y="303" text-anchor="middle">3</text>
+          <text class="lab" x="170" y="264" text-anchor="middle" fill="#8B96AD">espera rotación</text>
+        </g>
+        <g class="cnode" data-step="3" tabindex="0" role="button" aria-label="Paso 4: vende SOL y cosecha ETH">
+          <circle cx="42" cy="170" r="26"/>
+          <text x="42" y="175" text-anchor="middle">4</text>
+          <text class="lab" x="42" y="132" text-anchor="middle" fill="#8B96AD">cosecha ETH</text>
+        </g>
+      </svg>
+      <div>
+        <div class="cstep on" data-step="0">
+          <div class="s-title">1 · Espera en ETH</div>
+          <p>Estado por defecto: 100% en ETH, sin ansiedad. Si el ratio SOL/ETH no cae, no haces nada. <b>No operar también es una posición.</b></p>
+        </div>
+        <div class="cstep" data-step="1">
+          <div class="s-title">2 · Compra SOL barato — por tramos</div>
+          <p>Cuando el ratio cae <b>−10%</b> desde su último pico, compras SOL con el <b>15%</b> del portafolio. Si cae a <b>−15%</b>, otro 15%. Nunca todo de golpe: cada <span class="gl" tabindex="0" data-gl="tramo">tramo</span> te protege de no saber dónde está el piso.</p>
+        </div>
+        <div class="cstep" data-step="2">
+          <div class="s-title">3 · Espera la rotación</div>
+          <p>Mantienes ese SOL hasta que recupere fuerza contra ETH. La señal de salida: SOL supera a ETH en <b>~5% en una sesión</b>, o el ratio vuelve a zonas de <span class="gl" tabindex="0" data-gl="resistencia">resistencia</span> (como la <span class="gl" tabindex="0" data-gl="ma25">MA25</span>).</p>
+        </div>
+        <div class="cstep" data-step="3">
+          <div class="s-title">4 · Vende SOL → cosecha ETH</div>
+          <p>Vendes el SOL de vuelta a ETH. Como lo compraste barato en ETH y lo vendiste caro en ETH, <b>ahora tienes más monedas</b>. Fijas el nuevo pico del ratio como referencia y el bucle empieza otra vez.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== TAB 3 · LAS REGLAS ===== -->
+<section class="panel" id="p-reglas" role="tabpanel" aria-labelledby="tab-reglas">
+  <h2>Las cinco reglas</h2>
+  <p class="lede">Un sistema no es una opinión sobre el mercado: es un conjunto de reglas que se ejecutan aunque tengas miedo o euforia.</p>
+
+  <div class="card">
+    <div class="rule">
+      <div class="r-name">1 · Salida — rotar SOL→ETH</div>
+      <div class="r-what">Cuando SOL supera a ETH en <mark>~+5%</mark> en una sesión, vendes SOL, vuelves a ETH y fijas el nuevo <b>ratio pico</b> como referencia (o cuando el ratio toca <span class="gl" tabindex="0" data-gl="resistencia">resistencia</span> / <span class="gl" tabindex="0" data-gl="ma25">MA25</span>).</div>
+      <div class="r-why">Por qué: te obliga a tomar ganancia cuando hay euforia — justo cuando el instinto dice "aguanta un poco más".</div>
+    </div>
+    <div class="rule">
+      <div class="r-name">2 · Entrada — recompra escalonada</div>
+      <div class="r-what">Tramo 1: <mark>−10%</mark> desde el pico → 15% del portafolio. Tramo 2: <mark>−15%</mark> → otro 15%. Tramos 3 y 4 opcionales en <span class="gl" tabindex="0" data-gl="soporte">soportes</span> técnicos más profundos.</div>
+      <div class="r-why">Por qué: nadie sabe dónde está el piso. Escalonar convierte "adivinar el mínimo" en "promediar cerca del mínimo".</div>
+    </div>
+    <div class="rule">
+      <div class="r-name">3 · Exposición máxima — 30% en SOL</div>
+      <div class="r-what">Nunca más del <mark>30%</mark> del portafolio fuera de ETH.</div>
+      <div class="r-why">Por qué: si la tesis falla, el 70% de tu patrimonio sigue intacto en tu unidad de cuenta. El sistema sobrevive para el siguiente ciclo.</div>
+    </div>
+    <div class="rule">
+      <div class="r-name">4 · Cero apalancamiento</div>
+      <div class="r-what">Solo <span class="gl" tabindex="0" data-gl="spot">spot</span>. Nunca margen, nunca futuros.</div>
+      <div class="r-why">Por qué: sin apalancamiento no existe la liquidación. El tiempo siempre juega a tu favor, nunca en contra.</div>
+    </div>
+    <div class="rule">
+      <div class="r-name">5 · Disciplina — nada fuera de las señales</div>
+      <div class="r-what">Si el ratio no toca una zona, no hay operación. Ni "presentimientos", ni noticias, ni Twitter.</div>
+      <div class="r-why">Por qué: la mayoría de traders nuevos no pierden por mal análisis — pierden por operar de más. La regla te quita el gatillo de la mano.</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Tabla de señales — el sistema como código ejecutable</h3>
+    <p class="muted" style="font-size:.8rem;margin-bottom:10px">Cada fila es una instrucción completa. Si la condición no se cumple, la fila no existe.</p>
+    <div class="tbl-scroll">
+      <table class="sigtbl">
+        <thead><tr><th scope="col">SI [condición]</th><th scope="col">ENTONCES [acción]</th><th scope="col">TAMAÑO [%]</th></tr></thead>
+        <tbody>
+          <tr><td class="si">ratio cae <mark>−10%</mark> desde el pico</td><td class="ent">comprar SOL — tramo 1</td><td class="tam">15%</td></tr>
+          <tr><td class="si">ratio cae <mark>−15%</mark> desde el pico</td><td class="ent">comprar SOL — tramo 2</td><td class="tam">+15%</td></tr>
+          <tr><td class="si">soporte profundo (opcional)</td><td class="ent">tramos 3–4 según plan escrito</td><td class="tam">≤30% total</td></tr>
+          <tr><td class="si">SOL supera a ETH <mark>~+5%</mark> en una sesión, o ratio toca resistencia / <mark>MA25</mark></td><td class="ent">vender SOL → volver a ETH → fijar nuevo pico</td><td class="tam">100% posición</td></tr>
+          <tr><td class="si">salida escalonada (mejora pro)</td><td class="ent">mitad en MA25 · mitad en <mark>+10%</mark> sobre promedio</td><td class="tam">50% + 50%</td></tr>
+          <tr><td class="si">ratio &lt; <mark>0.0355</mark> (invalidación)</td><td class="ent">congelar compras nuevas y reevaluar</td><td class="tam">0%</td></tr>
+          <tr><td class="si">exposición = <mark>30%</mark></td><td class="ent">no comprar más, pase lo que pase</td><td class="tam">0%</td></tr>
+          <tr><td class="si">sin señal</td><td class="ent">no operar (también es una posición)</td><td class="tam">0%</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <h2 style="margin-top:32px">Lo que añadiría un profesional</h2>
+  <p class="lede">Seis mejoras que llevan el sistema de "buen sistema casero" a "sistema de escritorio profesional".</p>
+
+  <div class="card">
+    <span class="tag now">Prioridad alta</span>
+    <h3>1 · Bitácora de ciclos (el journal)</h3>
+    <p>Registra cada rotación: fecha, ratio de entrada y salida, ETH antes y después. Tu métrica única: <b>ETH ganados por ciclo</b>. Sin datos escritos, "me fue bien" es una sensación, no un hecho. → Ya está integrada en la pestaña <b>Bitácora</b>.</p>
+  </div>
+  <div class="card">
+    <span class="tag now">Prioridad alta</span>
+    <h3>2 · Salida escalonada (espejo de la entrada)</h3>
+    <p>Ya compras por tramos — vende igual. Ejemplo: la mitad del SOL en la primera resistencia (MA25 del ratio) y la otra mitad en <span class="num">+10%</span> sobre tu precio promedio. Así nunca vendes todo demasiado temprano ni esperas de más con toda la posición.</p>
+  </div>
+  <div class="card">
+    <span class="tag now">Prioridad alta</span>
+    <h3>3 · Regla de reserva líquida</h3>
+    <p>Nunca despliegues el 100% de tu munición. Mantén siempre <span class="num">15–20%</span> del USDT sin órdenes activas. La caída que rompe todos tus niveles llega tarde o temprano — y ese día, tener <span class="gl" tabindex="0" data-gl="liquidez">liquidez</span> es la diferencia entre oportunidad y espectador.</p>
+  </div>
+  <div class="card">
+    <span class="tag">Prioridad media</span>
+    <h3>4 · Nivel de invalidación estructural</h3>
+    <p>Define de antemano el nivel del ratio donde tu tesis deja de ser válida (hoy: <mark>0.0355</mark>). Debajo de él: <b>congelar compras nuevas y reevaluar</b> — no promediar por instinto. Un profesional no necesita tener razón; necesita saber exactamente cuándo la perdió. Es tu <span class="gl" tabindex="0" data-gl="invalidacion">invalidación</span>.</p>
+  </div>
+  <div class="card">
+    <span class="tag">Prioridad media</span>
+    <h3>5 · Cambios de reglas solo entre ciclos</h3>
+    <p>Nunca modifiques una regla con posición abierta. Con dinero en juego, "mejorar el sistema" casi siempre es la emoción disfrazada de análisis. Anota la idea, cierra el ciclo, y evalúala en frío antes del siguiente.</p>
+  </div>
+  <div class="card">
+    <span class="tag">Siguiente etapa</span>
+    <h3>6 · Automatización progresiva</h3>
+    <p>El camino natural: <b>alertas de precio → órdenes limit preprogramadas → agente automatizado</b>. Un sistema 100% basado en reglas es exactamente lo que un agente de trading puede ejecutar sin ti. Cada regla escrita hoy es una línea de código de mañana.</p>
+  </div>
+</section>
+
+<!-- ===== TAB 4 · SIMULADOR ===== -->
+<section class="panel" id="p-simulador" role="tabpanel" aria-labelledby="tab-simulador">
+  <h2>Simulador de ciclo</h2>
+  <p class="lede">Arrastra el ratio y mira qué haría el sistema — sin arriesgar un solo ETH. La disciplina se aprende con la interfaz.</p>
+
+  <div class="card">
+    <h3>Checklist pre-operación</h3>
+    <p class="muted" style="font-size:.8rem;margin-bottom:8px">Las cinco reglas, antes de tocar el botón. <span class="ck-count" id="ckCount">0/5</span></p>
+    <ul class="ck">
+      <li><input type="checkbox" id="ck1" class="ckbox"><label for="ck1">La señal existe: el ratio tocó una zona del sistema (tramo, resistencia o +5% de sesión).<div class="r">Regla 5 · sin señal no hay operación</div></label></li>
+      <li><input type="checkbox" id="ck2" class="ckbox"><label for="ck2">El tamaño es el del plan: 15% por tramo, ni más ni menos.<div class="r">Regla 2 · entrada escalonada</div></label></li>
+      <li><input type="checkbox" id="ck3" class="ckbox"><label for="ck3">La exposición total tras la orden no supera el 30%.<div class="r">Regla 3 · exposición máxima</div></label></li>
+      <li><input type="checkbox" id="ck4" class="ckbox"><label for="ck4">Es spot puro: cero margen, cero futuros.<div class="r">Regla 4 · cero apalancamiento</div></label></li>
+      <li><input type="checkbox" id="ck5" class="ckbox"><label for="ck5">Sé exactamente dónde salgo: rotación en +5% de sesión o MA25, y congelo bajo 0.0355.<div class="r">Regla 1 · salida definida antes de entrar</div></label></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h3>El ciclo, en tus manos</h3>
+    <p class="muted" style="font-size:.8rem">Portafolio simulado: <span class="mono" id="simPortLbl">100.00 ETH</span> · pico de referencia: <span class="mono" id="simPeakLbl">0.0465</span></p>
+    <label for="simSlider" class="fld" style="margin:10px 0 0"><span style="font-family:'DM Mono',monospace;font-size:.62rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted)">Ratio SOL/ETH simulado</span></label>
+    <input type="range" id="simSlider" min="0.0340" max="0.0480" step="0.0001" value="0.0465" aria-label="Ratio SOL/ETH simulado">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:8px">
+      <div class="mono" style="font-size:1.5rem;color:var(--gold)" id="simRatioLbl">0.0465</div>
+      <div class="mono" style="font-size:.78rem;color:var(--muted)" id="simDDLbl">0.0% desde el pico</div>
+    </div>
+
+    <div class="verdict v-wait" id="simVerdict" role="status" aria-live="polite">
+      <div class="ic" id="simVIcon">⏸</div>
+      <div><div class="t" id="simVTitle">Zona neutral — esperar en ETH</div><div class="d" id="simVDesc">Sin señal no hay operación. No operar también es una posición.</div></div>
+    </div>
+
+    <div class="frow" style="margin-bottom:12px">
+      <button class="btn" id="btnT1" disabled>Comprar tramo 1 · 15%</button>
+      <button class="btn" id="btnT2" disabled>Comprar tramo 2 · 15%</button>
+    </div>
+    <button class="btn gold" id="btnRotar" disabled style="width:100%">Ejecutar rotación SOL → ETH</button>
+    <p class="muted" style="font-size:.72rem;margin-top:6px" id="rotarHint">Se habilita con el checklist completo (5/5) y una posición abierta en zona de rotación.</p>
+    <p class="mono" style="font-size:.8rem;color:var(--green);margin-top:8px;display:none" id="rotarResult" role="status" aria-live="polite"></p>
+    <button class="btn sm" id="btnLogCycle" style="display:none;margin-top:6px">Registrar este ciclo en la bitácora</button>
+    <button class="btn sm" id="btnSimReset" style="margin-top:12px">Reiniciar simulador</button>
+  </div>
+
+  <div class="card">
+    <h3>Asignación del portafolio</h3>
+    <div class="sim2col">
+      <div class="chart-wrap short" id="wrapDonut">
+        <canvas id="chDonut" role="img" aria-label="Donut de asignación del portafolio: porcentaje en ETH, en SOL y reserva líquida"></canvas>
+        <div class="chart-fallback"><table class="fb-tbl" id="fbDonut"></table></div>
+      </div>
+      <div>
+        <div class="metric" style="margin-bottom:10px"><div class="k">ETH totales (simulados)</div><div class="v" id="simEthCounter">100.00</div></div>
+        <div class="expo-cap"><span>Exposición SOL</span><span id="simExpoLbl">0% / 30%</span></div>
+        <div class="expo-bar" role="meter" aria-label="Exposición en SOL" aria-valuemin="0" aria-valuemax="30" aria-valuenow="0" id="simExpoMeter"><div class="expo-fill" id="simExpoFill"></div></div>
+        <p class="muted" style="font-size:.72rem;margin-top:8px">La reserva líquida (<span class="num">15–20%</span>) nunca entra en órdenes activas — es la mejora pro #3.</p>
+      </div>
+    </div>
+  </div>
+
+  <h2 style="margin-top:32px">Calculadora de tramos</h2>
+  <p class="lede">Tu situación real: portafolio, pico y ratio actual. La calculadora te dice qué toca hacer.</p>
+
+  <div class="card">
+    <div class="frow c3">
+      <div class="fld"><label for="cPort">Portafolio total (ETH)</label><input type="number" id="cPort" value="100" min="0" step="1"></div>
+      <div class="fld"><label for="cPeak">Ratio pico</label><input type="number" id="cPeak" value="0.0465" min="0.02" max="0.08" step="0.0001"></div>
+      <div class="fld"><label for="cNow">Ratio actual</label><input type="number" id="cNow" value="0.0412" min="0.02" max="0.08" step="0.0001"></div>
+    </div>
+    <div class="metric-grid" style="grid-template-columns:repeat(2,1fr)">
+      <div class="metric"><div class="k">Caída desde el pico</div><div class="v" id="cDD">—</div></div>
+      <div class="metric"><div class="k">Tramo que corresponde</div><div class="v" id="cTramo">—</div></div>
+      <div class="metric"><div class="k">ETH a asignar ahora</div><div class="v" id="cAsig">—</div></div>
+      <div class="metric"><div class="k">Precio promedio resultante</div><div class="v" id="cAvg">—</div></div>
+    </div>
+    <div class="expo-cap"><span>Exposición tras ejecutar</span><span id="cExpoLbl">0% / 30%</span></div>
+    <div class="expo-bar" role="meter" aria-label="Exposición proyectada" aria-valuemin="0" aria-valuemax="30" aria-valuenow="0" id="cExpoMeter"><div class="expo-fill" id="cExpoFill"></div></div>
+    <p class="muted" style="font-size:.74rem;margin-top:10px" id="cNote"></p>
+    <div class="chart-wrap short" style="margin-top:14px" id="wrapAvg">
+      <canvas id="chAvg" role="img" aria-label="Curva del precio promedio de compra según los tramos ejecutados frente al ratio actual"></canvas>
+      <div class="chart-fallback"><table class="fb-tbl" id="fbAvg"></table></div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== TAB 5 · BITÁCORA ===== -->
+<section class="panel" id="p-bitacora" role="tabpanel" aria-labelledby="tab-bitacora">
+  <h2>Bitácora de ciclos</h2>
+  <p class="lede">La mejora pro #1, integrada. Tu métrica única: <b>ETH ganados por ciclo</b>. Sin datos escritos, "me fue bien" es una sensación, no un hecho.</p>
+
+  <div class="metric-grid">
+    <div class="metric"><div class="k">ETH / ciclo promedio</div><div class="v" id="mAvg">—</div></div>
+    <div class="metric"><div class="k">Mejor ciclo</div><div class="v" id="mBest">—</div></div>
+    <div class="metric"><div class="k">Peor ciclo</div><div class="v" id="mWorst">—</div></div>
+    <div class="metric"><div class="k">Duración media</div><div class="v" id="mDur">—</div></div>
+    <div class="metric"><div class="k">Ciclos ganadores</div><div class="v" id="mWin">—</div></div>
+  </div>
+
+  <div class="card">
+    <h3>Registrar un ciclo cerrado</h3>
+    <form id="jForm">
+      <div class="frow c5">
+        <div class="fld"><label for="jDate">Fecha de cierre</label><input type="date" id="jDate" required></div>
+        <div class="fld"><label for="jIn">Ratio entrada</label><input type="number" id="jIn" step="0.0001" min="0.001" required placeholder="0.0412"></div>
+        <div class="fld"><label for="jOut">Ratio salida</label><input type="number" id="jOut" step="0.0001" min="0.001" required placeholder="0.0451"></div>
+        <div class="fld"><label for="jBefore">ETH antes</label><input type="number" id="jBefore" step="0.01" min="0" required placeholder="100"></div>
+        <div class="fld"><label for="jAfter">ETH después</label><input type="number" id="jAfter" step="0.01" min="0" required placeholder="103.2"></div>
+      </div>
+      <button type="submit" class="btn gold">Añadir ciclo</button>
+      <p class="muted mono" id="jMsg" style="font-size:.72rem;margin-top:8px" role="status" aria-live="polite"></p>
+    </form>
+  </div>
+
+  <div class="card">
+    <h3>Escalera de ETH</h3>
+    <p class="muted" style="font-size:.8rem;margin-bottom:10px">ETH acumulado ciclo a ciclo. El objetivo del sistema en una imagen: que cada barra sea más alta que la anterior.</p>
+    <div class="chart-wrap short" id="wrapStairs">
+      <canvas id="chStairs" role="img" aria-label="Gráfico de barras del ETH acumulado ciclo a ciclo"></canvas>
+      <div class="chart-fallback"><table class="fb-tbl" id="fbStairs"></table></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Historial</h3>
+    <div class="tbl-scroll">
+      <table class="jtbl" id="jTable">
+        <thead><tr>
+          <th data-sort="date" scope="col">Fecha <span class="arr" aria-hidden="true">▼</span></th>
+          <th data-sort="rin" scope="col">R. entrada <span class="arr" aria-hidden="true"></span></th>
+          <th data-sort="rout" scope="col">R. salida <span class="arr" aria-hidden="true"></span></th>
+          <th data-sort="before" scope="col">ETH antes <span class="arr" aria-hidden="true"></span></th>
+          <th data-sort="after" scope="col">ETH después <span class="arr" aria-hidden="true"></span></th>
+          <th data-sort="gain" scope="col">Δ ETH <span class="arr" aria-hidden="true"></span></th>
+          <th scope="col"></th>
+        </tr></thead>
+        <tbody id="jBody"></tbody>
+      </table>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:14px">
+      <button class="btn sm" id="btnExport">Exportar JSON</button>
+      <button class="btn sm" id="btnImport">Importar JSON</button>
+      <input type="file" id="fileImport" accept="application/json" style="display:none" aria-hidden="true">
+      <button class="btn sm" id="btnClear">Borrar todo</button>
+    </div>
+    <p class="muted" style="font-size:.7rem;margin-top:8px">Los datos se guardan en este navegador (localStorage). Exporta el JSON como respaldo.</p>
+  </div>
+</section>
+
+<!-- ===== TAB 6 · RIESGOS ===== -->
+<section class="panel" id="p-riesgos" role="tabpanel" aria-labelledby="tab-riesgos">
+  <h2>Todo sistema tiene riesgos</h2>
+  <p class="lede">Un trader nuevo pregunta "¿cuánto puedo ganar?". Un profesional pregunta primero "¿cómo puede fallar esto?".</p>
+
+  <div class="risk-grid">
+    <div class="card risk">
+      <h3>El cuchillo que sigue cayendo</h3>
+      <p>El ratio SOL/ETH puede seguir bajando después de tus compras. Los tramos suavizan el golpe, pero no lo eliminan. Es el <span class="gl" tabindex="0" data-gl="drawdown">drawdown</span> del sistema.</p>
+      <div class="r-mit"><b>Mitigación:</b> tope del 30%, cero apalancamiento y nivel de invalidación. Puedes esperar años sin ser liquidado.</div>
+    </div>
+    <div class="card risk">
+      <h3>Órdenes que se llenan juntas</h3>
+      <p>ETH cae → tus compras de ETH se ejecutan. SOL suele caer más fuerte → las de SOL también. Despliegas toda tu liquidez justo en la peor parte de la caída.</p>
+      <div class="r-mit"><b>Mitigación:</b> la regla de reserva (mejora #3) — nunca el 100% en órdenes activas.</div>
+    </div>
+    <div class="card risk">
+      <h3>La rotación que no vuelve</h3>
+      <p>Puede pasar mucho tiempo antes de que SOL recupere fuerza contra ETH, dejando el 30% "atrapado" sin generar ciclos.</p>
+      <div class="r-mit"><b>Mitigación:</b> salida escalonada (mejora #2) y aceptar que la paciencia es parte del costo del sistema.</div>
+    </div>
+    <div class="card risk">
+      <h3>El riesgo de la tesis madre</h3>
+      <p>Todo el sistema asume que ETH es un buen activo para acumular a largo plazo. Si esa tesis falla, ganaste monedas de algo que vale menos.</p>
+      <div class="r-mit"><b>Mitigación:</b> definir el precio y las condiciones de salida final <i>antes</i> de llegar — y revisar la tesis con datos, no con fe.</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h3>Medidor de exposición — el freno del sistema</h3>
+    <p class="muted" style="font-size:.8rem;margin-bottom:6px">Sincronizado con el simulador. El sistema jamás pasa del <span class="num">30%</span>: ahí está el freno estructural.</p>
+    <svg class="gauge-svg" id="gaugeSvg" viewBox="0 0 380 230" role="img" aria-label="Medidor semicircular de exposición en SOL, de 0 a 30 por ciento del portafolio">
+      <path d="M 40 200 A 150 150 0 0 1 340 200" fill="none" stroke="rgba(139,150,173,.18)" stroke-width="26" stroke-linecap="round"/>
+      <path id="gArcGreen" d="" fill="none" stroke="#4CAF7D" stroke-width="26" stroke-linecap="butt" opacity=".85"/>
+      <path id="gArcAmber" d="" fill="none" stroke="#D4AF37" stroke-width="26" stroke-linecap="butt" opacity=".85"/>
+      <path id="gArcRed" d="" fill="none" stroke="#E05C5C" stroke-width="26" stroke-linecap="butt" opacity=".9"/>
+      <g id="gNeedle"><line x1="190" y1="200" x2="190" y2="72" stroke="#EAE6DA" stroke-width="3" stroke-linecap="round"/><circle cx="190" cy="200" r="8" fill="#EAE6DA"/></g>
+      <text x="190" y="150" text-anchor="middle" fill="#D4AF37" font-family="DM Mono,monospace" font-size="30" id="gVal">0%</text>
+      <text x="190" y="172" text-anchor="middle" fill="#8B96AD" font-family="DM Mono,monospace" font-size="10" letter-spacing="2">EXPOSICIÓN SOL</text>
+      <text x="40" y="225" text-anchor="middle" fill="#8B96AD" font-family="DM Mono,monospace" font-size="11">0%</text>
+      <text x="190" y="38" text-anchor="middle" fill="#8B96AD" font-family="DM Mono,monospace" font-size="11">15%</text>
+      <text x="340" y="225" text-anchor="middle" fill="#E05C5C" font-family="DM Mono,monospace" font-size="11">30%</text>
+    </svg>
+    <div class="bandlegend" style="justify-content:center">
+      <span><b style="background:#4CAF7D"></b> 0–15% · un tramo</span>
+      <span><b style="background:#D4AF37"></b> 15–30% · dos tramos</span>
+      <span><b style="background:#E05C5C"></b> 30% · tope — nunca más</span>
+    </div>
+  </div>
+
+  <div class="quote">
+    <p>"No intento predecir el mercado. Tengo una máquina de reglas que compra lo que se abarata y vende lo que se encarece, medida en la moneda que quiero acumular. Mi trabajo no es ser inteligente todos los días — es <b>no romper mis propias reglas ningún día</b>."</p>
+  </div>
+</section>
+
+<footer>
+  <div class="brand">Sistema 369 · Omraam Group</div>
+  Herramienta educativa e informativa. No constituye asesoría financiera.
+</footer>
+
+</div>
+<div id="glosstip" role="tooltip" aria-hidden="true"></div>
+
+<script>
+'use strict';
+/* ==========================================================================
+   SISTEMA 369 · Terminal educativa — JS vanilla ES6, sin frameworks.
+   Todos los parámetros del sistema viven en CONFIG: tocar uno solo lugar.
+   ========================================================================== */
+const CONFIG = {
+  TRAMO1_DD: -10,        // % de caída desde el pico → tramo 1
+  TRAMO2_DD: -15,        // % de caída desde el pico → tramo 2
+  TRAMO_PCT: 15,         // % del portafolio por tramo
+  MAX_EXPO: 30,          // % máximo del portafolio fuera de ETH
+  EXIT_SESSION: 5,       // % de sesión SOL>ETH que dispara la rotación
+  SALIDA_ESC: 10,        // % sobre promedio para la mitad 2 (salida escalonada)
+  INVALIDACION: 0.0355,  // ratio bajo el cual se congelan compras
+  MA_PERIOD: 25,         // periodo de la media móvil del ratio
+  RESERVA_MIN: 15,       // % mínimo de reserva líquida
+  RESERVA_MAX: 20,       // % máximo de reserva líquida
+  SEED: 369,             // semilla del generador de datos demo
+  SESSIONS: 120,         // sesiones del gráfico maestro
+  DEMO_PEAK: 0.0465,     // pico de referencia de la demo
+  SIM_PORT: 100          // ETH del portafolio simulado
+};
+
+/* ---------- utilidades ---------- */
+const $ = id => document.getElementById(id);
+const motionMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
+let reduceMotion = motionMQ.matches;
+// si el usuario cambia la preferencia con la página abierta, el JS también reacciona
+if (motionMQ.addEventListener) motionMQ.addEventListener('change', e => {
+  reduceMotion = e.matches;
+  if (typeof startCycleAuto === 'function') startCycleAuto();
+});
+const hasChart = typeof window.Chart !== 'undefined';
+const F4 = v => Number(v).toFixed(4);
+const F2 = v => Number(v).toFixed(2);
+// Paleta de los gráficos: se lee EN VIVO de las variables CSS del tema activo,
+// así al cambiar de tema los charts se repintan con los colores correctos.
+const C = {};
+function readPalette(){
+  const cs = getComputedStyle(document.documentElement);
+  const g = (n, fb) => (cs.getPropertyValue(n).trim() || fb);
+  C.gold  = g('--gold', '#D4AF37');
+  C.ink   = g('--ink', '#EAE6DA');
+  C.muted = g('--muted', '#8B96AD');
+  C.green = g('--green', '#4CAF7D');
+  C.red   = g('--red', '#E05C5C');
+  C.line  = g('--line', 'rgba(212,175,55,.22)');
+  C.card2 = g('--card2', '#16264A');
+  C.grid  = g('--grid', 'rgba(139,150,173,.12)');
+  C.label = g('--label-bg', 'rgba(10,20,40,.85)');
+}
+readPalette();
+
+// Contador animado (count-up) en DM Mono; con motion reducido salta directo.
+function countUp(el, to, dec = 2, prefix = ''){
+  const from = parseFloat(el.dataset.v || '0') || 0;
+  el.dataset.v = to;
+  if (reduceMotion || Math.abs(to - from) < Math.pow(10, -dec)) { el.textContent = prefix + to.toFixed(dec); return; }
+  const t0 = performance.now(), dur = 700;
+  (function tick(t){
+    const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3);
+    el.textContent = prefix + (from + (to - from) * e).toFixed(dec);
+    if (k < 1) requestAnimationFrame(tick);
+  })(t0);
+}
+
+/* ---------- tabs accesibles (roving tabindex + flechas) ---------- */
+const tabBtns = [...document.querySelectorAll('#tabs button')];
+const panels = { panel:'p-panel', simple:'p-simple', reglas:'p-reglas', simulador:'p-simulador', bitacora:'p-bitacora', riesgos:'p-riesgos' };
+function showTab(btn){
+  tabBtns.forEach(b => { b.classList.remove('active'); b.setAttribute('aria-selected','false'); b.tabIndex = -1; });
+  btn.classList.add('active'); btn.setAttribute('aria-selected','true'); btn.tabIndex = 0;
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('show'));
+  $(panels[btn.dataset.tab]).classList.add('show');
+  window.scrollTo({ top:0, behavior: reduceMotion ? 'auto' : 'smooth' });
+  if (window.__charts) requestAnimationFrame(() => Object.values(window.__charts).forEach(c => c && c.resize()));
+}
+tabBtns.forEach(btn => btn.addEventListener('click', () => showTab(btn)));
+document.getElementById('tabs').addEventListener('keydown', e => {
+  const i = tabBtns.indexOf(document.activeElement);
+  if (i < 0) return;
+  let j = null;
+  if (e.key === 'ArrowRight') j = (i + 1) % tabBtns.length;
+  if (e.key === 'ArrowLeft')  j = (i - 1 + tabBtns.length) % tabBtns.length;
+  if (e.key === 'Home') j = 0;
+  if (e.key === 'End') j = tabBtns.length - 1;
+  if (j !== null){ e.preventDefault(); tabBtns[j].focus(); showTab(tabBtns[j]); }
+});
+
+/* ---------- glosario con tooltips ---------- */
+const GLOSARIO = {
+  ratio:        ['Ratio SOL/ETH','Cuántos ETH cuesta 1 SOL. Si el ratio sube, SOL se encarece contra ETH; si baja, se abarata. Es el único precio que mira este sistema.'],
+  unidad:       ['Unidad de cuenta','La moneda en la que mides tu riqueza. Aquí es ETH: una operación solo es ganancia si terminas con más ETH que antes.'],
+  ma25:         ['MA25','Media móvil de 25 sesiones del ratio: el promedio de los últimos 25 cierres. Actúa como zona de resistencia natural en los rebotes.'],
+  invalidacion: ['Invalidación','Nivel (hoy 0.0355) donde la tesis deja de ser válida. Debajo: congelar compras y reevaluar — nunca promediar por instinto.'],
+  spot:         ['Spot','Comprar y vender el activo real, sin deuda. Sin margen ni futuros no existe liquidación: puedes esperar indefinidamente.'],
+  tramo:        ['Tramo','Cada compra parcial del plan escalonado: 15% del portafolio en −10%, otro 15% en −15%. Nunca todo de golpe.'],
+  rotacion:     ['Rotación','El movimiento de salida: vender el SOL y volver a ETH, cosechando la diferencia. Cierra el ciclo y fija el nuevo pico.'],
+  drawdown:     ['Drawdown','La caída desde el punto más alto. El sistema lo acota: máximo 30% expuesto y compras congeladas bajo la invalidación.'],
+  resistencia:  ['Resistencia','Zona de precio donde históricamente aparece venta y el rebote se frena. La MA25 del ratio suele actuar como resistencia.'],
+  soporte:      ['Soporte','Zona de precio donde históricamente aparece compra y la caída se frena. Los tramos 3–4 opcionales se colocan en soportes profundos.'],
+  liquidez:     ['Liquidez','Capital disponible al instante, sin órdenes activas. La reserva del 15–20% existe para la caída que rompe todos los niveles.']
+};
+const tip = $('glosstip');
+let tipOwner = null;
+function tipShow(el){
+  const [term, def] = GLOSARIO[el.dataset.gl] || ['',''];
+  if (!term) return;
+  tip.innerHTML = '<span class="term">' + term + '</span>' + def;
+  tip.classList.add('show'); tip.setAttribute('aria-hidden','false');
+  el.setAttribute('aria-describedby','glosstip'); tipOwner = el;
+  const r = el.getBoundingClientRect(), tw = Math.min(280, window.innerWidth - 24);
+  tip.style.maxWidth = tw + 'px';
+  let x = Math.min(Math.max(12, r.left), window.innerWidth - tw - 12);
+  let y = r.bottom + 8;
+  tip.style.left = x + 'px'; tip.style.top = y + 'px';
+  const th = tip.offsetHeight;
+  if (y + th > window.innerHeight - 8) tip.style.top = (r.top - th - 8) + 'px';
+}
+function tipHide(){
+  tip.classList.remove('show'); tip.setAttribute('aria-hidden','true');
+  if (tipOwner){ tipOwner.removeAttribute('aria-describedby'); tipOwner = null; }
+}
+// WCAG 1.4.13: el tooltip debe poder descartarse sin mover el foco
+document.addEventListener('keydown', e => { if (e.key === 'Escape') tipHide(); });
+document.querySelectorAll('.gl').forEach(el => {
+  el.addEventListener('mouseenter', () => tipShow(el));
+  el.addEventListener('mouseleave', tipHide);
+  el.addEventListener('focus', () => tipShow(el));
+  el.addEventListener('blur', tipHide);
+});
+window.addEventListener('scroll', tipHide, { passive:true });
+
+/* ---------- generador de datos demo (seed determinista) ---------- */
+// mulberry32: PRNG con semilla — la demo es reproducible en cada carga.
+function mulberry32(seed){
+  let a = seed >>> 0;
+  return function(){
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+// Forma pedagógica: subida al pico → caída con tramos → rebote y rotación.
+function genSeries(){
+  const rnd = mulberry32(CONFIG.SEED), n = CONFIG.SESSIONS, out = [];
+  const anchors = [[0,0.0438],[18,CONFIG.DEMO_PEAK],[30,0.0448],[46,0.0408],[62,0.0378],[74,0.0386],[86,0.0414],[100,0.0446],[119,0.0468]];
+  for (let i = 0; i < n; i++){
+    let k = 0;
+    while (k < anchors.length - 2 && anchors[k+1][0] < i) k++;
+    const [x0,y0] = anchors[k], [x1,y1] = anchors[k+1];
+    const t = Math.min(1, Math.max(0, (i - x0) / (x1 - x0)));
+    const base = y0 + (y1 - y0) * (t*t*(3-2*t));          // suavizado
+    const noise = (rnd() - 0.5) * 0.0011 + (rnd() - 0.5) * 0.0005;
+    out.push(Math.min(0.048, Math.max(0.034, base + noise)));
+  }
+  return out;
+}
+function movingAvg(arr, p){
+  return arr.map((_, i) => {
+    if (i < p - 1) return null;
+    let s = 0; for (let k = i - p + 1; k <= i; k++) s += arr[k];
+    return s / p;
+  });
+}
+const SERIE = genSeries();
+const MA = movingAvg(SERIE, CONFIG.MA_PERIOD);
+// Marcadores del ciclo de ejemplo: compras en cruces de tramos, venta en el rebote.
+const T1_LVL = CONFIG.DEMO_PEAK * (1 + CONFIG.TRAMO1_DD/100);
+const T2_LVL = CONFIG.DEMO_PEAK * (1 + CONFIG.TRAMO2_DD/100);
+const peakIdx = SERIE.indexOf(Math.max(...SERIE.slice(0, 40)));
+let buy1 = -1, buy2 = -1, sell = -1;
+for (let i = peakIdx; i < SERIE.length; i++){
+  if (buy1 < 0 && SERIE[i] <= T1_LVL) buy1 = i;
+  if (buy2 < 0 && SERIE[i] <= T2_LVL) buy2 = i;
+}
+if (buy1 >= 0){
+  const avgCost = buy2 >= 0 ? (SERIE[buy1] + SERIE[buy2]) / 2 : SERIE[buy1];
+  for (let i = Math.max(buy1, buy2) + 1; i < SERIE.length; i++){
+    const sessionUp = (SERIE[i] / SERIE[i-1] - 1) * 100 >= CONFIG.EXIT_SESSION;
+    const overAvg = SERIE[i] >= avgCost * (1 + CONFIG.SALIDA_ESC/100);
+    const overMA = MA[i] !== null && SERIE[i] >= MA[i] && SERIE[i-1] < (MA[i-1] ?? Infinity);
+    if (sessionUp || overAvg || overMA){ sell = i; break; }
+  }
+  if (sell < 0) sell = SERIE.length - 1;
+}
+
+/* ---------- consejo de zona (tooltip del gráfico maestro) ---------- */
+function zoneAdvice(v, peak){
+  const dd = (v / peak - 1) * 100;
+  if (v < CONFIG.INVALIDACION) return '⚠ Bajo invalidación (' + F4(CONFIG.INVALIDACION) + '): congelar compras y reevaluar';
+  if (dd <= CONFIG.TRAMO2_DD) return 'Tramo 2 activo: comprar otro ' + CONFIG.TRAMO_PCT + '% (máx. ' + CONFIG.MAX_EXPO + '%)';
+  if (dd <= CONFIG.TRAMO1_DD) return 'Tramo 1 activo: comprar ' + CONFIG.TRAMO_PCT + '% del portafolio';
+  if (dd >= 0) return 'Nuevo pico: si hay posición, zona de rotación SOL → ETH';
+  if (dd > -3) return 'Cerca del pico: vigilar señal de salida (+' + CONFIG.EXIT_SESSION + '% en sesión / MA25)';
+  return 'Zona neutral: esperar. Sin señal no hay operación';
+}
+
+/* ---------- plugin de bandas del sistema ---------- */
+const bandsPlugin = {
+  id: 'bands369',
+  afterDatasetsDraw(chart){
+    const { ctx, chartArea:a, scales:{ y } } = chart;
+    if (!a) return;
+    const peak = getPanelPeak();
+    const lvl = (val, color, dash, label) => {
+      if (val < y.min || val > y.max) return;
+      const py = y.getPixelForValue(val);
+      ctx.save();
+      ctx.strokeStyle = color; ctx.lineWidth = 1.4;
+      ctx.setLineDash(dash);
+      ctx.beginPath(); ctx.moveTo(a.left, py); ctx.lineTo(a.right, py); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.font = '9px "DM Mono", monospace';
+      const w = ctx.measureText(label).width + 10;
+      ctx.fillStyle = C.label;
+      ctx.fillRect(a.right - w, py - 13, w, 12);
+      ctx.fillStyle = color; ctx.textAlign = 'right';
+      ctx.fillText(label, a.right - 5, py - 4);
+      ctx.restore();
+    };
+    // zona roja bajo invalidación
+    const invY = y.getPixelForValue(CONFIG.INVALIDACION);
+    if (invY < a.bottom){
+      ctx.save();
+      ctx.fillStyle = 'rgba(224,92,92,.07)';
+      ctx.fillRect(a.left, invY, a.right - a.left, a.bottom - invY);
+      ctx.restore();
+    }
+    lvl(peak, C.gold, [], 'pico ' + F4(peak));
+    lvl(peak * (1 + CONFIG.TRAMO1_DD/100), C.gold, [5,4], 'tramo 1 · −10%');
+    lvl(peak * (1 + CONFIG.TRAMO2_DD/100), C.gold, [2,3], 'tramo 2 · −15%');
+    lvl(CONFIG.INVALIDACION, C.red, [], 'invalidación ' + F4(CONFIG.INVALIDACION));
+    const now = getPanelRatio();
+    if (now) lvl(now, C.ink, [1,3], 'ahora ' + F4(now));
+  }
+};
+
+/* ---------- gráfico maestro ---------- */
+window.__charts = {};
+function getPanelRatio(){ const v = parseFloat($('pRatio').value); return isFinite(v) && v > 0 ? v : null; }
+function getPanelPeak(){ const v = parseFloat($('pPeak').value); return isFinite(v) && v > 0 ? v : CONFIG.DEMO_PEAK; }
+
+function renderFbMaster(){
+  const peak = getPanelPeak();
+  $('fbMaster').innerHTML =
+    '<tr><th>Nivel</th><th>Ratio</th><th>Acción</th></tr>' +
+    '<tr><td>Pico de referencia</td><td>' + F4(peak) + '</td><td>zona de rotación</td></tr>' +
+    '<tr><td>Tramo 1 (−10%)</td><td>' + F4(peak*0.9) + '</td><td>comprar 15%</td></tr>' +
+    '<tr><td>Tramo 2 (−15%)</td><td>' + F4(peak*0.85) + '</td><td>comprar +15%</td></tr>' +
+    '<tr><td>Invalidación</td><td>' + F4(CONFIG.INVALIDACION) + '</td><td>congelar compras</td></tr>';
+}
+function buildMaster(){
+  if (!hasChart){
+    $('wrapMaster').parentElement.classList.add('nochart');
+    renderFbMaster();
+    return;
+  }
+  const labels = SERIE.map((_, i) => 'S' + (i + 1));
+  // marcadores como datasets de línea sin trazo (compatibles con eje de categorías)
+  const mk = (idx, color, style, r) => ({
+    type:'line', showLine: false, spanGaps: false,
+    data: SERIE.map((v, i) => idx.includes(i) ? v : null),
+    pointStyle: style, pointRadius: r, pointHoverRadius: r + 2,
+    pointBackgroundColor: color, pointBorderColor: '#0A1428', pointBorderWidth: 1.5, order: 0
+  });
+  window.__charts.master = new Chart($('chMaster'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label:'Ratio SOL/ETH', data: SERIE, borderColor: C.gold, borderWidth: 2,
+          pointRadius: 0, pointHoverRadius: 4, pointHoverBackgroundColor: C.gold,
+          tension: .35, fill: false, order: 1 },
+        { label:'MA25', data: MA, borderColor: C.muted, borderWidth: 1.4,
+          pointRadius: 0, pointHoverRadius: 0, tension: .35, fill: false, order: 2 },
+        Object.assign(mk([buy1, buy2], C.green, 'triangle', 6), { label:'Compras (tramos)' }),
+        Object.assign(mk([sell], C.gold, 'circle', 6), { label:'Venta (rotación)' })
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: reduceMotion ? false : { duration: 900 },
+      interaction: { mode:'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: C.card2, borderColor: C.gold, borderWidth: 1,
+          titleColor: C.gold, bodyColor: C.ink, padding: 10, displayColors: false,
+          titleFont: { family:'DM Mono' }, bodyFont: { family:'DM Mono', size: 11 },
+          filter: item => item.datasetIndex === 0,
+          callbacks: {
+            title: items => items.length ? 'Sesión ' + items[0].label.slice(1) : '',
+            label: item => 'ratio ' + F4(item.parsed.y),
+            afterBody(items){
+              if (!items.length) return '';
+              const v = items[0].parsed.y;
+              const lines = ['', zoneAdvice(v, getPanelPeak())];
+              const i = items[0].dataIndex;
+              if (i === buy1) lines.push('● Aquí la demo compró el tramo 1');
+              if (i === buy2) lines.push('● Aquí la demo compró el tramo 2');
+              if (i === sell) lines.push('● Aquí la demo rotó SOL → ETH');
+              return lines;
+            }
+          }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, border: { color: C.grid },
+             ticks: { color: C.muted, font: { family:'DM Mono', size: 9 }, maxTicksLimit: 8 } },
+        y: { min: 0.033, max: 0.049, grid: { color: C.grid }, border: { display: false },
+             ticks: { color: C.muted, font: { family:'DM Mono', size: 9 }, callback: v => F4(v) } }
+      }
+    },
+    plugins: [bandsPlugin]
+  });
+}
+
+/* ==========================================================================
+   PANEL · diagrama del ciclo · SIMULADOR · donut de asignación
+   ========================================================================== */
+
+/* ---------- Panel: responde en tiempo real al ratio editable ---------- */
+function updatePanel(){
+  const ratio = getPanelRatio(), peak = getPanelPeak();
+  $('pPeakLbl').textContent = F4(peak);
+  const badge = $('pBadge'), bTxt = $('pBadgeTxt'), bNote = $('pBadgeNote');
+  badge.className = 'badge pulse';
+  if (!ratio){
+    $('pDist').textContent = '—'; $('pDistNote').textContent = 'ingresa un ratio válido';
+    badge.classList.add('b-wait'); bTxt.textContent = 'ESPERANDO EN ETH'; bNote.textContent = 'sin datos';
+    return;
+  }
+  const dd = (ratio / peak - 1) * 100;
+  const t1 = peak * (1 + CONFIG.TRAMO1_DD / 100);
+  const t2 = peak * (1 + CONFIG.TRAMO2_DD / 100);
+
+  // distancia al próximo tramo de compra
+  if (ratio < CONFIG.INVALIDACION){
+    $('pDist').textContent = '⚠';
+    $('pDistNote').textContent = 'bajo invalidación ' + F4(CONFIG.INVALIDACION) + ' — sin compras nuevas';
+  } else if (ratio > t1){
+    $('pDist').textContent = (100 * (t1 / ratio - 1)).toFixed(1) + '%';
+    $('pDistNote').textContent = 'hasta tramo 1 (' + F4(t1) + ')';
+  } else if (ratio > t2){
+    $('pDist').textContent = (100 * (t2 / ratio - 1)).toFixed(1) + '%';
+    $('pDistNote').textContent = 'tramo 1 activo · hasta tramo 2 (' + F4(t2) + ')';
+  } else {
+    $('pDist').textContent = '0.0%';
+    $('pDistNote').textContent = 'tramos 1–2 alcanzados · 3–4 opcionales en soportes';
+  }
+
+  // estado del ciclo
+  if (ratio < CONFIG.INVALIDACION){
+    badge.classList.add('b-frozen'); bTxt.textContent = 'CONGELADO — REEVALUAR';
+    bNote.textContent = 'ratio bajo ' + F4(CONFIG.INVALIDACION);
+  } else if (dd <= CONFIG.TRAMO1_DD){
+    badge.classList.add('b-accum'); bTxt.textContent = 'ACUMULANDO SOL';
+    bNote.textContent = 'caída ' + dd.toFixed(1) + '% — ' + (dd <= CONFIG.TRAMO2_DD ? 'tramo 2' : 'tramo 1') + ' en juego';
+  } else if (dd >= 0){
+    badge.classList.add('b-rotate'); bTxt.textContent = 'LISTO PARA ROTAR';
+    bNote.textContent = 'nuevo pico del ratio — cosechar si hay posición';
+  } else {
+    badge.classList.add('b-wait'); bTxt.textContent = 'ESPERANDO EN ETH';
+    bNote.textContent = 'caída ' + dd.toFixed(1) + '% — sin señal todavía';
+  }
+  if (window.__charts.master) window.__charts.master.update(reduceMotion ? 'none' : undefined);
+  else if (!hasChart) renderFbMaster();          // modo degradado: la tabla también responde
+}
+$('pRatio').addEventListener('input', updatePanel);
+$('pPeak').addEventListener('input', updatePanel);
+$('pPeakEdit').addEventListener('click', () => {
+  const row = $('pPeakRow');
+  const open = row.style.display === 'none';
+  row.style.display = open ? 'block' : 'none';
+  $('pPeakEdit').setAttribute('aria-expanded', String(open));
+  if (open) $('pPeak').focus();
+});
+
+/* ---------- diagrama circular del ciclo (En simple) ---------- */
+const cnodes = [...document.querySelectorAll('.cnode')];
+const csteps = [...document.querySelectorAll('.cstep')];
+let cycleStep = 0, cycleTimer = null;
+function setCycleStep(n){
+  cycleStep = n;
+  cnodes.forEach(el => el.classList.toggle('on', +el.dataset.step === n));
+  csteps.forEach(el => el.classList.toggle('on', +el.dataset.step === n));
+}
+function startCycleAuto(){
+  clearInterval(cycleTimer);
+  if (reduceMotion) return;                       // con motion reducido: solo manual
+  cycleTimer = setInterval(() => setCycleStep((cycleStep + 1) % 4), 3600);
+}
+cnodes.forEach(el => {
+  const go = () => { setCycleStep(+el.dataset.step); startCycleAuto(); };
+  el.addEventListener('click', go);
+  el.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); go(); } });
+});
+setCycleStep(0); startCycleAuto();
+
+/* ---------- SIMULADOR de ciclo ---------- */
+const sim = { eth: CONFIG.SIM_PORT, peak: CONFIG.DEMO_PEAK, t1: null, t2: null,
+              spent: 0, sol: 0, lastGain: null, lastEntry: null, lastExit: null };
+const RESERVA_SHOW = (CONFIG.RESERVA_MIN + CONFIG.RESERVA_MAX) / 2;   // 17.5% en el donut
+
+function simExpo(){ return (sim.t1 ? CONFIG.TRAMO_PCT : 0) + (sim.t2 ? CONFIG.TRAMO_PCT : 0); }
+// coste medio REAL por SOL: ETH gastados / SOL comprados (media armónica de los tramos)
+function simAvg(){
+  if (sim.sol > 0) return sim.spent / sim.sol;
+  return sim.t1 || sim.t2 || null;
+}
+function ckDone(){ return [...document.querySelectorAll('.ckbox')].filter(c => c.checked).length; }
+
+function setVerdict(cls, icon, title, desc){
+  const v = $('simVerdict');
+  v.className = 'verdict ' + cls;
+  $('simVIcon').textContent = icon;
+  $('simVTitle').textContent = title;
+  $('simVDesc').textContent = desc;
+}
+
+function updateExpoBar(fillEl, lblEl, meterEl, expo){
+  const pct = Math.min(expo, CONFIG.MAX_EXPO);
+  fillEl.style.width = (pct / CONFIG.MAX_EXPO * 100) + '%';
+  fillEl.classList.toggle('warn', expo > CONFIG.TRAMO_PCT && expo < CONFIG.MAX_EXPO);
+  fillEl.classList.toggle('max', expo >= CONFIG.MAX_EXPO);
+  lblEl.textContent = expo.toFixed(0) + '% / ' + CONFIG.MAX_EXPO + '%';
+  meterEl.setAttribute('aria-valuenow', expo.toFixed(0));
+}
+
+function updateSim(){
+  const v = parseFloat($('simSlider').value);
+  const dd = (v / sim.peak - 1) * 100;
+  const expo = simExpo(), avg = simAvg();
+  $('simRatioLbl').textContent = F4(v);
+  $('simDDLbl').textContent = (dd >= 0 ? '+' : '') + dd.toFixed(1) + '% desde el pico';
+  $('simPeakLbl').textContent = F4(sim.peak);
+  $('simPortLbl').textContent = F2(sim.eth) + ' ETH';
+  $('ckCount').textContent = ckDone() + '/5';
+
+  const frozen = v < CONFIG.INVALIDACION;
+  const gainPct = avg ? (v / avg - 1) * 100 : null;
+  const sellZone = avg !== null && gainPct >= CONFIG.EXIT_SESSION;
+
+  // veredicto en tiempo real: qué haría el sistema aquí
+  if (frozen){
+    setVerdict('v-frozen','🧊','Bajo invalidación (' + F4(CONFIG.INVALIDACION) + ') — congelar',
+      'Compras nuevas congeladas. Reevaluar la tesis, no promediar por instinto.');
+  } else if (sellZone){
+    setVerdict('v-sell','◎','Zona de rotación — vender SOL → ETH',
+      'La posición va +' + gainPct.toFixed(1) + '% sobre tu promedio (' + F4(avg) + '). Cosechar y fijar nuevo pico.');
+  } else if (dd <= CONFIG.TRAMO2_DD && !sim.t2){
+    setVerdict('v-buy','▲','Tramo 2 activo — comprar otro ' + CONFIG.TRAMO_PCT + '%',
+      'Caída de ' + dd.toFixed(1) + '% desde el pico. Segunda compra escalonada; exposición máxima ' + CONFIG.MAX_EXPO + '%.');
+  } else if (dd <= CONFIG.TRAMO1_DD && !sim.t1){
+    setVerdict('v-buy','▲','Tramo 1 activo — comprar ' + CONFIG.TRAMO_PCT + '% del portafolio',
+      'Caída de ' + dd.toFixed(1) + '% desde el pico ' + F4(sim.peak) + '. Primera compra escalonada.');
+  } else if (expo > 0){
+    setVerdict('v-wait','⏳','Mantener la posición — esperar la rotación',
+      avg ? 'Promedio de compra ' + F4(avg) + '. La señal de salida: +' + CONFIG.EXIT_SESSION + '% sobre promedio o MA25.' : '');
+  } else {
+    setVerdict('v-wait','⏸','Zona neutral — esperar en ETH',
+      'Sin señal no hay operación. No operar también es una posición.');
+  }
+
+  // botones de compra: respetan tramos, invalidación y tope del 30%
+  $('btnT1').disabled = frozen || sim.t1 !== null || dd > CONFIG.TRAMO1_DD || expo + CONFIG.TRAMO_PCT > CONFIG.MAX_EXPO;
+  $('btnT2').disabled = frozen || sim.t2 !== null || dd > CONFIG.TRAMO2_DD || expo + CONFIG.TRAMO_PCT > CONFIG.MAX_EXPO;
+  // rotación: SOLO con checklist 5/5 + posición + zona de venta (disciplina por interfaz)
+  const canRotate = ckDone() === 5 && expo > 0 && sellZone && !frozen;
+  $('btnRotar').disabled = !canRotate;
+  $('rotarHint').textContent = canRotate
+    ? 'Todo en orden: checklist 5/5, posición abierta y señal de salida activa.'
+    : 'Se habilita con el checklist completo (' + ckDone() + '/5), una posición abierta y la señal de salida (+' + CONFIG.EXIT_SESSION + '% sobre promedio).';
+
+  updateExpoBar($('simExpoFill'), $('simExpoLbl'), $('simExpoMeter'), expo);
+  updateDonut(expo);
+  setGauge(expo);
+}
+
+function simBuy(n){
+  const v = parseFloat($('simSlider').value);
+  const expo = simExpo();
+  if (expo + CONFIG.TRAMO_PCT > CONFIG.MAX_EXPO) return;      // el tope es sagrado
+  const ethIn = sim.eth * CONFIG.TRAMO_PCT / 100;
+  if (n === 1 && sim.t1 === null){ sim.t1 = v; } else if (n === 2 && sim.t2 === null){ sim.t2 = v; } else return;
+  sim.spent += ethIn; sim.sol += ethIn / v;
+  if (!sim.lastEntry) sim.lastEntry = v;
+  $('rotarResult').style.display = 'none'; $('btnLogCycle').style.display = 'none';
+  updateSim();
+}
+$('btnT1').addEventListener('click', () => simBuy(1));
+$('btnT2').addEventListener('click', () => simBuy(2));
+
+$('btnRotar').addEventListener('click', () => {
+  const v = parseFloat($('simSlider').value);
+  if ($('btnRotar').disabled) return;
+  const ethBack = sim.sol * v;
+  const gain = ethBack - sim.spent;
+  const before = sim.eth;
+  sim.eth += gain;
+  sim.lastGain = gain; sim.lastExit = v;
+  sim.peak = Math.max(v, sim.peak);                            // nuevo pico de referencia
+  const entry = simAvg(); sim.lastEntry = entry;
+  sim.t1 = sim.t2 = null; sim.spent = 0; sim.sol = 0;
+  countUp($('simEthCounter'), sim.eth, 2);
+  const r = $('rotarResult');
+  r.style.display = 'block';
+  r.textContent = '✓ Rotación ejecutada: ' + F2(before) + ' → ' + F2(sim.eth) + ' ETH (' +
+                  (gain >= 0 ? '+' : '') + F2(gain) + ' ETH cosechados). Nuevo pico: ' + F4(sim.peak);
+  $('btnLogCycle').style.display = 'inline-block';
+  $('btnLogCycle').dataset.entry = entry; $('btnLogCycle').dataset.exit = v;
+  $('btnLogCycle').dataset.before = before; $('btnLogCycle').dataset.after = sim.eth;
+  updateSim();
+});
+
+$('btnSimReset').addEventListener('click', () => {
+  sim.eth = CONFIG.SIM_PORT; sim.peak = CONFIG.DEMO_PEAK;
+  sim.t1 = sim.t2 = null; sim.spent = 0; sim.sol = 0; sim.lastGain = null;
+  $('simSlider').value = CONFIG.DEMO_PEAK;
+  $('rotarResult').style.display = 'none'; $('btnLogCycle').style.display = 'none';
+  countUp($('simEthCounter'), sim.eth, 2);
+  updateSim();
+});
+
+$('simSlider').addEventListener('input', updateSim);
+document.querySelectorAll('.ckbox').forEach(c => c.addEventListener('change', updateSim));
+
+/* ---------- donut de asignación (sincronizado con el simulador) ---------- */
+function donutData(expo){
+  const reserva = RESERVA_SHOW;
+  return [Math.max(0, 100 - expo - reserva), expo, reserva];
+}
+function buildDonut(){
+  if (!hasChart){ $('wrapDonut').parentElement.classList.add('nochart'); updateDonut(0); return; }
+  window.__charts.donut = new Chart($('chDonut'), {
+    type: 'doughnut',
+    data: {
+      labels: ['ETH (base)', 'SOL (exposición)', 'Reserva líquida'],
+      datasets: [{
+        data: donutData(0),
+        backgroundColor: ['rgba(139,150,173,.45)', C.gold, C.green],
+        borderColor: '#121F3E', borderWidth: 3, hoverOffset: 6
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, cutout: '68%',
+      animation: reduceMotion ? false : { duration: 500 },
+      plugins: {
+        legend: { position: 'bottom', labels: { color: C.ink, font: { family:'DM Sans', size: 11 }, usePointStyle: true, pointStyle:'circle', padding: 14 } },
+        tooltip: {
+          backgroundColor: C.card2, borderColor: C.gold, borderWidth: 1, titleColor: C.gold, bodyColor: C.ink,
+          bodyFont: { family:'DM Mono', size: 11 },
+          callbacks: { label: it => ' ' + it.label + ': ' + it.parsed.toFixed(1) + '%' }
+        }
+      }
+    }
+  });
+}
+function updateDonut(expo){
+  const d = donutData(expo);
+  if (window.__charts.donut){
+    window.__charts.donut.data.datasets[0].data = d;
+    window.__charts.donut.update(reduceMotion ? 'none' : undefined);
+  }
+  $('fbDonut').innerHTML = '<tr><th>Bolsillo</th><th>%</th></tr>' +
+    '<tr><td>ETH (base)</td><td>' + d[0].toFixed(1) + '%</td></tr>' +
+    '<tr><td>SOL (exposición)</td><td>' + d[1].toFixed(1) + '%</td></tr>' +
+    '<tr><td>Reserva líquida</td><td>' + d[2].toFixed(1) + '%</td></tr>';
+}
+
+/* ==========================================================================
+   CALCULADORA · curva del promedio · GAUGE · BITÁCORA · escalera · init
+   ========================================================================== */
+
+/* ---------- calculadora de tramos ---------- */
+function calcLevels(peak){
+  return [ peak * (1 + CONFIG.TRAMO1_DD/100), peak * (1 + CONFIG.TRAMO2_DD/100),
+           peak * 0.80, peak * 0.75 ];                 // tramos 3–4: soportes profundos opcionales
+}
+function updateCalc(){
+  const port = parseFloat($('cPort').value), peak = parseFloat($('cPeak').value), now = parseFloat($('cNow').value);
+  if (!(port > 0) || !(peak > 0) || !(now > 0)){
+    // inputs inválidos: no dejar resultados viejos en pantalla
+    ['cDD','cTramo','cAsig','cAvg'].forEach(id => $(id).textContent = '—');
+    updateExpoBar($('cExpoFill'), $('cExpoLbl'), $('cExpoMeter'), 0);
+    $('cNote').textContent = 'Completa los tres campos (valores mayores que cero) para calcular.';
+    return;
+  }
+  const dd = (now / peak - 1) * 100;
+  const [t1, t2] = calcLevels(peak);
+  $('cDD').textContent = (dd >= 0 ? '+' : '') + dd.toFixed(1) + '%';
+
+  let tramo = 0, asig = 0, avg = null, expo = 0, note = '';
+  if (now < CONFIG.INVALIDACION){
+    $('cTramo').textContent = 'CONGELAR';
+    note = 'El ratio está bajo la invalidación (' + F4(CONFIG.INVALIDACION) + '). El sistema congela compras nuevas y reevalúa la tesis — no se promedia por instinto.';
+  } else if (dd <= CONFIG.TRAMO2_DD){
+    // aplican ambos tramos: 15% + 15% = 30% partiendo sin posición previa
+    tramo = 2; expo = CONFIG.TRAMO_PCT * 2; asig = port * CONFIG.TRAMO_PCT * 2 / 100;
+    avg = 2 / (1/t1 + 1/t2);   // media armónica: mismo ETH gastado en cada tramo
+    $('cTramo').textContent = 'Tramo 2';
+    note = 'Partiendo sin posición, aplican los dos tramos: 15% en ' + F4(t1) + ' y 15% en ' + F4(t2) + ' (si ya ejecutaste el tramo 1, asigna solo ' + F2(port * CONFIG.TRAMO_PCT / 100) + ' ETH más). Exposición total: 30% — el tope. Tramos 3–4 solo si tu plan escrito los contempla.';
+  } else if (dd <= CONFIG.TRAMO1_DD){
+    tramo = 1; expo = CONFIG.TRAMO_PCT; asig = port * CONFIG.TRAMO_PCT / 100; avg = t1;
+    $('cTramo').textContent = 'Tramo 1';
+    note = 'Primera compra escalonada: ' + CONFIG.TRAMO_PCT + '% del portafolio. El tramo 2 esperaría en ' + F4(t2) + ' (−15%).';
+  } else {
+    $('cTramo').textContent = 'Ninguno';
+    note = 'Sin señal: el ratio está a ' + (100 * (t1 / now - 1)).toFixed(1) + '% del tramo 1 (' + F4(t1) + '). Esperar en ETH también es una posición.';
+  }
+  $('cAsig').textContent = asig > 0 ? F2(asig) + ' ETH' : '0 ETH';
+  $('cAvg').textContent = avg ? F4(avg) : '—';
+  $('cNote').textContent = note;
+  updateExpoBar($('cExpoFill'), $('cExpoLbl'), $('cExpoMeter'), expo);
+  updateAvgChart(peak, now, tramo);
+}
+['cPort','cPeak','cNow'].forEach(id => $(id).addEventListener('input', updateCalc));
+
+/* ---------- curva del promedio (calculadora) ---------- */
+function avgSeries(peak){
+  const lv = calcLevels(peak), out = [];
+  let s = 0;
+  // promedio acumulado tras cada tramo (media armónica: mismo ETH gastado por tramo)
+  lv.forEach((p, i) => { s += 1 / p; out.push((i + 1) / s); });
+  return out;
+}
+function updateAvgChart(peak, now, executed){
+  const data = avgSeries(peak);
+  const labels = ['Tramo 1 (−10%)','Tramo 2 (−15%)','Tramo 3 (opc.)','Tramo 4 (opc.)'];
+  $('fbAvg').innerHTML = '<tr><th>Tramo</th><th>Promedio</th></tr>' +
+    data.map((v, i) => '<tr><td>' + labels[i] + '</td><td>' + F4(v) + '</td></tr>').join('');
+  if (!window.__charts.avg) return;
+  const ch = window.__charts.avg;
+  ch.data.labels = labels;
+  ch.data.datasets[0].data = data;
+  ch.data.datasets[0].pointBackgroundColor = data.map((_, i) => i < executed ? C.gold : 'rgba(139,150,173,.35)');
+  ch.data.datasets[0].pointBorderColor = data.map((_, i) => i < executed ? C.gold : C.muted);
+  ch.data.datasets[1].data = data.map(() => now);
+  ch.update(reduceMotion ? 'none' : undefined);
+}
+function buildAvg(){
+  if (!hasChart){ $('wrapAvg').parentElement.classList.add('nochart'); return; }
+  window.__charts.avg = new Chart($('chAvg'), {
+    type: 'line',
+    data: { labels: [], datasets: [
+      { label:'Precio promedio tras cada tramo', data: [], borderColor: C.gold, borderWidth: 2,
+        pointRadius: 5, pointHoverRadius: 7, tension: .25 },
+      { label:'Ratio actual', data: [], borderColor: C.ink, borderWidth: 1.2, borderDash: [4,4], pointRadius: 0 }
+    ]},
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: reduceMotion ? false : { duration: 400 },
+      plugins: {
+        legend: { labels: { color: C.muted, font: { family:'DM Sans', size: 10 }, usePointStyle: true, pointStyle:'line', boxHeight: 6 } },
+        tooltip: { backgroundColor: C.card2, borderColor: C.gold, borderWidth: 1, titleColor: C.gold, bodyColor: C.ink,
+                   bodyFont: { family:'DM Mono', size: 11 }, callbacks: { label: it => ' ' + F4(it.parsed.y) } }
+      },
+      scales: {
+        x: { grid: { display:false }, ticks: { color: C.muted, font: { family:'DM Mono', size: 9 } } },
+        y: { grid: { color: C.grid }, ticks: { color: C.muted, font: { family:'DM Mono', size: 9 }, callback: v => F4(v) } }
+      }
+    }
+  });
+}
+
+/* ---------- gauge de exposición 0–30% (Riesgos) ---------- */
+function polar(cx, cy, r, deg){ const a = (deg - 180) * Math.PI / 180; return [cx + r * Math.cos(a), cy + r * Math.sin(a)]; }
+function arcPath(cx, cy, r, a0, a1){
+  const [x0, y0] = polar(cx, cy, r, a0), [x1, y1] = polar(cx, cy, r, a1);
+  return 'M ' + x0.toFixed(1) + ' ' + y0.toFixed(1) + ' A ' + r + ' ' + r + ' 0 0 1 ' + x1.toFixed(1) + ' ' + y1.toFixed(1);
+}
+function buildGauge(){
+  const pctA = p => p / CONFIG.MAX_EXPO * 180;                    // 0–30% → 0–180°
+  $('gArcGreen').setAttribute('d', arcPath(190, 200, 150, 0, pctA(CONFIG.TRAMO_PCT)));
+  $('gArcAmber').setAttribute('d', arcPath(190, 200, 150, pctA(CONFIG.TRAMO_PCT), pctA(CONFIG.MAX_EXPO - 1)));
+  $('gArcRed').setAttribute('d', arcPath(190, 200, 150, pctA(CONFIG.MAX_EXPO - 1), 180));
+}
+function setGauge(expo){
+  const pct = Math.min(Math.max(expo, 0), CONFIG.MAX_EXPO);
+  $('gNeedle').setAttribute('transform', 'rotate(' + (pct / CONFIG.MAX_EXPO * 180 - 90).toFixed(1) + ' 190 200)');
+  const t = $('gVal');
+  t.textContent = pct.toFixed(0) + '%';
+  t.setAttribute('fill', pct >= CONFIG.MAX_EXPO ? C.red : pct > CONFIG.TRAMO_PCT ? C.gold : C.green);
+  // el valor vigente también para lectores de pantalla (role=img oculta el <text> interno)
+  $('gaugeSvg').setAttribute('aria-label',
+    'Medidor de exposición en SOL: ' + pct.toFixed(0) + '% de un máximo del ' + CONFIG.MAX_EXPO + '% del portafolio');
+}
+
+/* ---------- BITÁCORA: estado en memoria + localStorage con try/catch ---------- */
+const LS_KEY = 's369_bitacora_v1';
+const DEMO_CYCLE = [{ date:'2026-05-30', rin:0.0398, rout:0.0439, before:291, after:300 }];  // ciclo real: +9 ETH
+let journal = DEMO_CYCLE.slice();
+let jSort = { key:'date', dir:1 };
+function jLoad(){
+  try {
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw){ const arr = JSON.parse(raw); if (Array.isArray(arr) && arr.every(jValid)) journal = arr; }
+  } catch(e){ /* almacenamiento bloqueado: seguimos en memoria */ }
+}
+function jSave(){
+  try { localStorage.setItem(LS_KEY, JSON.stringify(journal)); } catch(e){ /* en memoria */ }
+}
+function jValid(c){
+  return c && typeof c.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(c.date) &&
+         ['rin','rout','before','after'].every(k => typeof c[k] === 'number' && isFinite(c[k]));
+}
+const jGain = c => c.after - c.before;
+
+function jMetrics(){
+  const n = journal.length;
+  if (!n){ ['mAvg','mBest','mWorst','mDur','mWin'].forEach(id => $(id).textContent = '—'); return; }
+  const gains = journal.map(jGain);
+  const sum = gains.reduce((a, b) => a + b, 0);
+  $('mAvg').textContent = (sum / n >= 0 ? '+' : '') + F2(sum / n) + ' ETH';
+  $('mBest').textContent = (Math.max(...gains) >= 0 ? '+' : '') + F2(Math.max(...gains)) + ' ETH';
+  $('mWorst').textContent = (Math.min(...gains) >= 0 ? '+' : '') + F2(Math.min(...gains)) + ' ETH';
+  $('mWin').textContent = Math.round(gains.filter(g => g > 0).length / n * 100) + '%';
+  if (n < 2){ $('mDur').textContent = '—'; }
+  else {
+    const ds = journal.map(c => new Date(c.date + 'T00:00:00').getTime()).sort((a, b) => a - b);
+    let gaps = 0; for (let i = 1; i < ds.length; i++) gaps += ds[i] - ds[i-1];
+    $('mDur').textContent = Math.round(gaps / (ds.length - 1) / 86400000) + ' días';
+  }
+}
+function jRender(){
+  const rows = journal.map((c, i) => ({ c, i, gain: jGain(c) }));
+  const k = jSort.key;
+  rows.sort((a, b) => {
+    const va = k === 'gain' ? a.gain : k === 'date' ? a.c.date : c2v(a.c, k);
+    const vb = k === 'gain' ? b.gain : k === 'date' ? b.c.date : c2v(b.c, k);
+    return (va < vb ? -1 : va > vb ? 1 : 0) * jSort.dir;
+  });
+  $('jBody').innerHTML = rows.map(({ c, i, gain }) =>
+    '<tr><td>' + c.date + '</td><td>' + F4(c.rin) + '</td><td>' + F4(c.rout) + '</td>' +
+    '<td>' + F2(c.before) + '</td><td>' + F2(c.after) + '</td>' +
+    '<td class="' + (gain >= 0 ? 'up' : 'down') + '">' + (gain >= 0 ? '+' : '') + F2(gain) + '</td>' +
+    '<td><button class="del" data-i="' + i + '" aria-label="Eliminar ciclo del ' + c.date + '">✕</button></td></tr>'
+  ).join('');
+  document.querySelectorAll('#jBody .del').forEach(b => b.addEventListener('click', () => {
+    journal.splice(+b.dataset.i, 1); jSave(); jRefresh();
+  }));
+  document.querySelectorAll('#jTable th[data-sort]').forEach(th => {
+    const active = th.dataset.sort === jSort.key;
+    th.querySelector('.arr').textContent = active ? (jSort.dir === 1 ? '▲' : '▼') : '';
+    th.setAttribute('aria-sort', active ? (jSort.dir === 1 ? 'ascending' : 'descending') : 'none');
+  });
+  jMetrics(); updateStairs(); updatePanelEth();
+}
+function c2v(c, k){ return k === 'rin' ? c.rin : k === 'rout' ? c.rout : k === 'before' ? c.before : c.after; }
+function jRefresh(){ jRender(); }
+document.querySelectorAll('#jTable th[data-sort]').forEach(th => {
+  th.tabIndex = 0;                                  // ordenable también con teclado
+  const sort = () => {
+    if (jSort.key === th.dataset.sort) jSort.dir *= -1; else jSort = { key: th.dataset.sort, dir: 1 };
+    jRender();
+  };
+  th.addEventListener('click', sort);
+  th.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); sort(); } });
+});
+$('jForm').addEventListener('submit', e => {
+  e.preventDefault();
+  const c = { date: $('jDate').value, rin: parseFloat($('jIn').value), rout: parseFloat($('jOut').value),
+              before: parseFloat($('jBefore').value), after: parseFloat($('jAfter').value) };
+  if (!jValid(c)){ $('jMsg').textContent = '✕ Revisa los campos: todos son obligatorios.'; return; }
+  journal.push(c); jSave(); jRefresh();
+  $('jMsg').textContent = '✓ Ciclo registrado: ' + (jGain(c) >= 0 ? '+' : '') + F2(jGain(c)) + ' ETH.';
+  e.target.reset();
+});
+$('btnLogCycle').addEventListener('click', () => {
+  const d = $('btnLogCycle').dataset;
+  const c = { date: new Date().toISOString().slice(0, 10), rin: +(+d.entry).toFixed(4), rout: +(+d.exit).toFixed(4),
+              before: +(+d.before).toFixed(2), after: +(+d.after).toFixed(2) };
+  journal.push(c); jSave(); jRefresh();
+  $('btnLogCycle').style.display = 'none';
+  showTab(tabBtns.find(b => b.dataset.tab === 'bitacora'));
+});
+$('btnExport').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(journal, null, 2)], { type:'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'sistema369-bitacora.json';
+  a.click(); URL.revokeObjectURL(a.href);
+});
+$('btnImport').addEventListener('click', () => $('fileImport').click());
+$('fileImport').addEventListener('change', e => {
+  const f = e.target.files[0]; if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    try {
+      const arr = JSON.parse(rd.result);
+      if (!Array.isArray(arr) || !arr.every(jValid)) throw new Error('formato');
+      journal = arr; jSave(); jRefresh();
+      $('jMsg').textContent = '✓ Importados ' + arr.length + ' ciclos.';
+    } catch(err){ $('jMsg').textContent = '✕ JSON inválido: se esperaba una lista de ciclos.'; }
+  };
+  rd.readAsText(f); e.target.value = '';
+});
+$('btnClear').addEventListener('click', () => {
+  if (journal.length && confirm('¿Borrar los ' + journal.length + ' ciclos de la bitácora?')){
+    journal = []; jSave(); jRefresh();
+  }
+});
+
+/* ---------- escalera de ETH (se alimenta de la bitácora) ---------- */
+function stairsData(){
+  const orden = journal.slice().sort((a, b) => a.date < b.date ? -1 : 1);
+  let acc = 0;
+  return orden.map((c, i) => { acc += jGain(c); return { label:'Ciclo ' + (i + 1), acc, gain: jGain(c) }; });
+}
+function buildStairs(){
+  if (!hasChart){ $('wrapStairs').parentElement.classList.add('nochart'); return; }
+  window.__charts.stairs = new Chart($('chStairs'), {
+    type: 'bar',
+    data: { labels: [], datasets: [{ label:'ETH acumulado', data: [], backgroundColor: C.gold,
+            borderRadius: 4, maxBarThickness: 46 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      animation: reduceMotion ? false : { duration: 600 },
+      plugins: {
+        legend: { display: false },
+        tooltip: { backgroundColor: C.card2, borderColor: C.gold, borderWidth: 1, titleColor: C.gold, bodyColor: C.ink,
+          bodyFont: { family:'DM Mono', size: 11 },
+          callbacks: { label: it => { const d = stairsData()[it.dataIndex];
+            return [' acumulado: ' + (d.acc >= 0 ? '+' : '') + F2(d.acc) + ' ETH', ' este ciclo: ' + (d.gain >= 0 ? '+' : '') + F2(d.gain) + ' ETH']; } }
+        }
+      },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: C.muted, font: { family:'DM Mono', size: 10 } } },
+        y: { beginAtZero: true, grid: { color: C.grid },
+             ticks: { color: C.muted, font: { family:'DM Mono', size: 10 }, callback: v => '+' + v + ' ETH' } }
+      }
+    }
+  });
+}
+function updateStairs(){
+  const d = stairsData();
+  $('fbStairs').innerHTML = '<tr><th>Ciclo</th><th>Δ ETH</th><th>Acumulado</th></tr>' +
+    (d.length ? d.map(r => '<tr><td>' + r.label + '</td><td>' + (r.gain >= 0 ? '+' : '') + F2(r.gain) + '</td><td>' +
+      (r.acc >= 0 ? '+' : '') + F2(r.acc) + '</td></tr>').join('') : '<tr><td colspan="3">Sin ciclos registrados aún.</td></tr>');
+  if (!window.__charts.stairs) return;
+  const ch = window.__charts.stairs;
+  ch.data.labels = d.map(r => r.label);
+  ch.data.datasets[0].data = d.map(r => r.acc);
+  ch.data.datasets[0].backgroundColor = d.map(r => r.gain >= 0 ? C.gold : C.red);
+  ch.update(reduceMotion ? 'none' : undefined);
+}
+function updatePanelEth(){
+  const total = journal.reduce((a, c) => a + jGain(c), 0);
+  countUp($('pEth'), total, 2, total >= 0 ? '+' : '');
+  $('pEthNote').textContent = 'en ' + journal.length + ' ciclo' + (journal.length === 1 ? '' : 's') + ' cerrado' + (journal.length === 1 ? '' : 's');
+}
+
+/* ---------- ticker de precios en vivo (Binance) ----------
+   WebSocket en tiempo real con arranque por REST y degradación elegante:
+   WS caído → sondeo REST cada 10s; sin red/geo-bloqueo → estado "sin conexión"
+   sin romper nada. Endpoints: stream.binance.com (WS), api.binance.com y
+   data-api.binance.vision (REST, con CORS público) como respaldo. */
+(function liveTicker(){
+  const SYMS = [
+    { k:'BTC', s:'btcusdt', px:'pxBTC', ch:'chBTC' },
+    { k:'ETH', s:'ethusdt', px:'pxETH', ch:'chETH' },
+    { k:'SOL', s:'solusdt', px:'pxSOL', ch:'chSOL' }
+  ];
+  const last = {};
+  const statusEl = $('tkStatus');
+  const setStatus = (txt, cls) => { if (statusEl){ statusEl.textContent = txt; statusEl.className = 'tk-status ' + (cls || ''); } };
+  const fmtUsd = v => {
+    v = +v;
+    if (v >= 1000) return '$' + v.toLocaleString('en-US', { maximumFractionDigits: 0 });
+    if (v >= 1)    return '$' + v.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    return '$' + v.toFixed(4);
+  };
+  function paint(k, price, chgPct){
+    const cfg = SYMS.find(x => x.k === k); if (!cfg) return;
+    const pxEl = $(cfg.px), chEl = $(cfg.ch);
+    if (pxEl){
+      const prev = last[k];
+      pxEl.textContent = fmtUsd(price);
+      if (prev != null && +price !== prev && !reduceMotion){
+        pxEl.classList.remove('up', 'down'); void pxEl.offsetWidth;   // reinicia animación
+        pxEl.classList.add(+price >= prev ? 'up' : 'down');
+      }
+    }
+    if (chEl && chgPct != null && chgPct !== ''){
+      const p = +chgPct;
+      chEl.textContent = (p >= 0 ? '+' : '') + p.toFixed(2) + '%';
+      chEl.className = 'tk-chg ' + (p >= 0 ? 'pos' : 'neg');
+    }
+    last[k] = +price;
+    updateLiveRatio();
+  }
+  function updateLiveRatio(){
+    const el = $('pxRATIO'); if (!el) return;
+    if (last.SOL && last.ETH){
+      const r = last.SOL / last.ETH;
+      el.textContent = r.toFixed(4);
+      el.dataset.ratio = r.toFixed(4);
+      const b = $('tkUseRatio'); if (b) b.disabled = false;
+    }
+  }
+
+  const REST = ['https://api.binance.com', 'https://data-api.binance.vision'];
+  async function seedRest(){
+    const q = encodeURIComponent(JSON.stringify(SYMS.map(x => x.s.toUpperCase())));
+    for (const base of REST){
+      try {
+        const r = await fetch(base + '/api/v3/ticker/24hr?symbols=' + q, { cache: 'no-store' });
+        if (!r.ok) continue;
+        const arr = await r.json();
+        arr.forEach(t => {
+          const cfg = SYMS.find(x => x.s.toUpperCase() === t.symbol);
+          if (cfg) paint(cfg.k, t.lastPrice, t.priceChangePercent);
+        });
+        return true;
+      } catch(e){ /* siguiente endpoint */ }
+    }
+    return false;
+  }
+
+  let ws = null, wsOK = false, pollTimer = null;
+  function startPolling(){
+    if (pollTimer) return;
+    pollTimer = setInterval(async () => {
+      const ok = await seedRest();
+      setStatus(ok ? '● cada 10s' : 'sin conexión', ok ? 'live' : 'off');
+    }, 10000);
+  }
+  function stopPolling(){ if (pollTimer){ clearInterval(pollTimer); pollTimer = null; } }
+  function startWS(){
+    if (!('WebSocket' in window)){ startPolling(); return; }
+    try {
+      const streams = SYMS.map(x => x.s + '@ticker').join('/');
+      ws = new WebSocket('wss://stream.binance.com:9443/stream?streams=' + streams);
+      ws.onopen = () => { wsOK = true; stopPolling(); setStatus('● en vivo · Binance', 'live'); };
+      ws.onmessage = ev => {
+        let d; try { d = JSON.parse(ev.data).data; } catch(e){ return; }
+        if (!d || !d.s) return;
+        const cfg = SYMS.find(x => x.s === d.s.toLowerCase());
+        if (cfg) paint(cfg.k, d.c, d.P);            // c = último precio, P = cambio 24h %
+      };
+      ws.onerror = () => { try { ws.close(); } catch(e){} };
+      ws.onclose = () => {
+        wsOK = false; startPolling(); setStatus('● reconectando…', 'stale');
+        setTimeout(() => { if (!wsOK) startWS(); }, 8000);   // reintento de WS
+      };
+    } catch(e){ startPolling(); }
+  }
+
+  // botón: llevar el ratio SOL/ETH en vivo al Panel
+  const useBtn = $('tkUseRatio');
+  if (useBtn) useBtn.addEventListener('click', () => {
+    const r = $('pxRATIO').dataset.ratio; if (!r) return;
+    $('pRatio').value = r;
+    if (typeof updatePanel === 'function') updatePanel();
+    const p = tabBtns.find(b => b.dataset.tab === 'panel'); if (p) showTab(p);
+  });
+
+  // arranque: pinta rápido por REST y abre el stream en vivo
+  (async () => {
+    const ok = await seedRest();
+    if (!ok) setStatus('sin conexión a Binance', 'off');
+    startWS();
+  })();
+})();
+
+readPalette();
+
+/* ---------- arranque ---------- */
+jLoad();
+buildMaster();
+buildDonut();
+buildAvg();
+buildStairs();
+buildGauge();
+jRender();          // también pinta escalera, métricas y ETH del panel
+updatePanel();
+updateSim();
+updateCalc();
+setGauge(0);
+$('jDate').value = new Date().toISOString().slice(0, 10);
+</script>
+</body>
+</html>
